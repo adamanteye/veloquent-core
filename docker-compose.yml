@@ -1,0 +1,21 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+     - "80:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    volumes:
+     - ./veloquent.toml:/usr/local/etc/veloquent.toml
+  postgres:
+    image: postgres:17.0-alpine3.20
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+     - ./data:/var/lib/postgresql/data
+    restart: unless-stopped

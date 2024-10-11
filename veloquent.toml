@@ -1,0 +1,7 @@
+[database]
+username = "postgres"
+password = "postgres"
+host = "postgres"
+port = 5432
+name = "veloquent"
+max_connections = 10

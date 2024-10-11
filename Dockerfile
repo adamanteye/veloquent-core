@@ -5,5 +5,6 @@ RUN cargo install --path .
 
 FROM debian:bookworm-slim
 COPY --from=builder /usr/local/cargo/bin/veloquent-core /usr/local/bin/veloquent-core
+COPY --from=builder /usr/src/veloquent-core/veloquent.toml /usr/local/etc/veloquent.toml
 EXPOSE 80
 CMD ["veloquent-core"]

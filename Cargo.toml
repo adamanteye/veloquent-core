@@ -1,0 +1,48 @@
+[workspace]
+members = ["entity"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+authors = ["adamanteye <yangzheh22@gmail.com>"]
+
+[workspace.dependencies]
+# Frameworks
+axum = "0.7.7"
+axum-extra = "0.9.4"
+sea-orm = "1.0.1"
+tokio = "1.40.0"
+# Serialization and deserialization
+serde = "1.0.210"
+serde_json = "1.0.128"
+toml = "0.8.19"
+# Open API generator
+utoipa = "4.2.3"
+utoipa-swagger-ui = "7.1.0"
+# Error handling
+anyhow = "1.0.89"
+
+[package]
+name = "veloquent-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+authors.workspace = true
+
+[dependencies]
+sea-orm = { workspace = true, features = [
+    "sqlx-postgres",
+    "runtime-tokio-rustls",
+] }
+axum = { workspace = true }
+tokio = { workspace = true, features = ["signal", "rt-multi-thread"] }
+axum-extra = { workspace = true, features = ["typed-header"] }
+serde = { workspace = true, features = ["derive"] }
+anyhow = { workspace = true }
+toml = { workspace = true }
+utoipa = { workspace = true, features = ["axum_extras"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+entity = { path = "entity" }

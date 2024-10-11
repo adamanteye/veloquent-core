@@ -32,7 +32,7 @@ struct AppState {
 #[doc(hidden)]
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = std::fs::read_to_string("config.toml")?;
+    let config = std::fs::read_to_string("/usr/local/etc/veloquent.toml")?;
     let config: Config = toml::from_str(config.as_str())?;
     // Postgres database
     let mut opt = ConnectOptions::new(format!(

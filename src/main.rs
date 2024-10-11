@@ -2,7 +2,7 @@
 
 //! Voloquent 后端服务
 //!
-//! 队名 Veloquent 结合拉丁语 `velox`(快速) 和 `eloquent` (雄辩), 表达快速而清晰的沟通能力.
+//! 队名 *Veloquent* 结合拉丁语 _velox_(快速) 和 _eloquent_ (雄辩), 表达快速而清晰的沟通能力.
 
 use anyhow::Result;
 use axum::Router;
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .merge(SwaggerUi::new("/doc").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8000").await?;
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:80").await?;
     axum::serve(listener, app)
         .with_graceful_shutdown(utility::shutdown_signal())
         .await?;

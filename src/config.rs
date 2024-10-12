@@ -19,9 +19,20 @@ pub struct Database {
     pub max_connections: u32,
 }
 
+/// 监听配置
+#[derive(Deserialize)]
+pub struct Listen {
+    /// 监听地址
+    pub address: String,
+    /// 监听端口
+    pub port: u16,
+}
+
 /// 后端配置
 #[derive(Deserialize)]
 pub struct Config {
     /// 数据库配置
     pub database: Database,
+    /// 监听配置
+    pub listen: Listen,
 }

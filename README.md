@@ -4,7 +4,7 @@
 
 数据库采用 `postgres:17.0-alpine3.20`, 详见 `docker-compose.yml`.
 
-**Velogent** 后端服务的配置文件示例为 `veloquent.toml`, 包含数据库敏感信息.
+**Veloquent** 后端服务的配置文件示例为 `veloquent.toml`, 包含数据库敏感信息.
 
 ## 测试指南
 
@@ -24,6 +24,14 @@ docker run -d \
 
 ```sh
 docker exec -it pg-dev psql -U yangzheh
+```
+
+完成新的 migration 后, 通过下列命令生成 entity.
+
+```sh
+sea-orm-cli generate entity \
+    -u postgres://yangzheh:123456@localhost:5432/veloquent \
+    -o src/entity
 ```
 
 ## API 文档

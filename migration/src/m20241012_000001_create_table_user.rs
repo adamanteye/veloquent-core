@@ -23,8 +23,14 @@ impl MigrationTrait for Migration {
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(User::Name).string().not_null())
-                    .col(ColumnDef::new(User::Alias).string().not_null())
+                    .col(ColumnDef::new(User::Name).string().not_null().unique_key())
+                    .col(ColumnDef::new(User::Alias).string())
+                    .col(ColumnDef::new(User::Salt).string().not_null())
+                    .col(ColumnDef::new(User::Hash).string().not_null())
+                    .col(ColumnDef::new(User::CreatedAt).timestamp().not_null())
+                    .col(ColumnDef::new(User::Gender).integer())
+                    .col(ColumnDef::new(User::Email).string().unique_key())
+                    .col(ColumnDef::new(User::Phone).string().unique_key())
                     .to_owned(),
             )
             .await
@@ -44,4 +50,10 @@ pub enum User {
     Id,
     Name,
     Alias,
+    Salt,
+    Hash,
+    CreatedAt,
+    Gender,
+    Email,
+    Phone,
 }

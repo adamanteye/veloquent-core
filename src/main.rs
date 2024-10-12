@@ -5,7 +5,7 @@
 //! 队名 *Veloquent* 结合拉丁语 _velox_(快速) 和 _eloquent_ (雄辩), 表达快速而清晰的沟通能力.
 
 use anyhow::Result;
-use axum::Router;
+use axum::{routing::post, Router};
 use clap::Parser;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tracing::{event, instrument, Level};
@@ -16,20 +16,17 @@ pub mod config;
 #[doc(hidden)]
 mod entity;
 pub mod error;
-mod jwt;
+pub mod jwt;
+mod openapi;
 pub mod param;
 #[doc(hidden)]
 mod utility;
-mod view;
+pub mod view;
 
 use config::Config;
 use migration::{Migrator, MigratorTrait};
 use param::Args;
-
-#[doc(hidden)]
-#[derive(OpenApi)]
-#[openapi()]
-struct ApiDoc;
+use view::*;
 
 #[doc(hidden)]
 #[derive(Clone)]
@@ -43,7 +40,6 @@ struct AppState {
 async fn main() -> Result<()> {
     let subscriber = tracing_subscriber::fmt()
         .compact()
-        .pretty()
         .with_file(true)
         .with_line_number(false)
         .with_thread_ids(true)
@@ -94,7 +90,8 @@ async fn main() -> Result<()> {
 
     let state = AppState { conn: db };
     let app = Router::new()
-        .merge(SwaggerUi::new("/doc").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(SwaggerUi::new("/doc").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
+        .route("/login", post(user::login_handler))
         .with_state(state);
     let listener =
         tokio::net::TcpListener::bind(format!("{}:{}", config.listen.address, config.listen.port))

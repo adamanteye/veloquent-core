@@ -7,8 +7,17 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
+    #[sea_orm(unique)]
     pub name: String,
-    pub alias: String,
+    pub alias: Option<String>,
+    pub salt: String,
+    pub hash: String,
+    pub created_at: DateTime,
+    pub gender: Option<i32>,
+    #[sea_orm(unique)]
+    pub email: Option<String>,
+    #[sea_orm(unique)]
+    pub phone: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

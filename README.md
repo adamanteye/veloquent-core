@@ -6,7 +6,14 @@
 
 **Veloquent** 后端服务的配置文件示例为 `veloquent.toml`, 包含数据库敏感信息.
 
-## 测试指南
+## 测试说明
+
+运行 llvm-cov 工具
+```sh
+cargo llvm-cov
+```
+
+## 调试说明
 
 在本地开发过程中, 在后台启动一个 Postgres 数据库可以如此进行.
 

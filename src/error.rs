@@ -51,3 +51,16 @@ impl IntoResponse for AppError {
         (status, Json(AppErrorResponse { msg: message })).into_response()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_std_error_to_response() {
+        let res: axum::response::Response =
+            AppError::from(std::io::Error::new(std::io::ErrorKind::Other, "test")).into_response();
+
+        assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+}

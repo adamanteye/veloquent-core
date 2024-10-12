@@ -48,7 +48,6 @@ impl From<i32> for JWTPayload {
 
 impl LoginRequest {
     async fn validate(&self, conn: &DatabaseConnection) -> Result<JWTPayload, AppError> {
-        use sha2::{Digest, Sha256};
         let user: Option<user::Model> = User::find()
             .filter(user::Column::Name.eq(&self.name))
             .one(conn)
@@ -57,23 +56,12 @@ impl LoginRequest {
             "user not exist: [{}]",
             &self.name
         )))?;
-        let mut hash = Sha256::new();
-        hash.update(self.passwd.clone());
-        hash.update(user.salt);
-        let hash = hash.finalize();
-        let mut buf = [0u8; 64];
-        let hash = base16ct::lower::encode_str(&hash, &mut buf)
-            .map_err(|e| anyhow::format_err!(e))?
-            .to_string();
-        if hash == user.hash {
+        if validate_passwd(&self.passwd, &user.salt, &user.hash)? {
             event!(Level::INFO, "successfully validate user {:?}", user.name);
             Ok(user.id.into())
         } else {
-            event!(Level::INFO, "failed to validate user {:?}", user.name);
-            Err(AppError::Unauthorized(format!(
-                "password is wrong [{}]",
-                &self.name
-            )))
+            event!(Level::INFO, "fail to validate user {:?}", user.name);
+            Err(AppError::Unauthorized("wrong password".to_string()))
         }
     }
 }
@@ -96,7 +84,7 @@ pub struct LoginResponse {
     responses(
         (status = 200, description = "成功登录", body = LoginResponse),
         (status = 201, description = "成功注册", body = LoginResponse),
-        (status = 401, description = "登录失败", body = AppErrorResponse),
+        (status = 401, description = "登录失败", body = AppErrorResponse, example = json!({"msg":"wrong password"})),
     ),
     tag = "user"
 )]
@@ -139,7 +127,24 @@ pub async fn login_handler(
         .into_response())
 }
 
-fn gen_hash_and_salt(passwd: &String) -> Result<(String, String), anyhow::Error> {
+fn validate_passwd(passwd: &str, salt: &str, hash: &str) -> anyhow::Result<bool> {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(passwd);
+    h.update(salt);
+    let h = h.finalize();
+    let mut buf = [0u8; 64];
+    let h = base16ct::lower::encode_str(&h, &mut buf)
+        .map_err(|e| anyhow::format_err!(e))?
+        .to_string();
+    if h == hash {
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+fn gen_hash_and_salt(passwd: &str) -> Result<(String, String), anyhow::Error> {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sha2::{Digest, Sha256};
@@ -157,4 +162,18 @@ fn gen_hash_and_salt(passwd: &String) -> Result<(String, String), anyhow::Error>
         .map_err(|e| anyhow::format_err!(e))?
         .to_string();
     Ok((hash, salt))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_hash_and_salt() {
+        let (hash, salt) = gen_hash_and_salt("123456").unwrap();
+        assert_eq!(hash.len(), 64);
+        assert_eq!(salt.len(), 30);
+        assert!(validate_passwd("123456", &salt, &hash).unwrap());
+        assert!(!validate_passwd("1234356", &salt, &hash).unwrap());
+    }
 }

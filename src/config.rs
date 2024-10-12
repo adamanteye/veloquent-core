@@ -47,3 +47,31 @@ pub struct Config {
     /// 鉴权配置
     pub authentication: Authentication,
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_config_file() {
+        let config_file = r#"
+[database]
+username = "yangzheh"
+password = "123456"
+address = "127.0.0.1"
+port = 5432
+name = "veloquent"
+max_connections = 10
+
+[listen]
+address = "127.0.0.1"
+port = 8000
+
+[authentication]
+secret = "secret"
+exp_after = 86400
+"#;
+
+        assert!(toml::from_str::<Config>(config_file).is_ok());
+    }
+}

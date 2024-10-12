@@ -1,6 +1,12 @@
-use axum::{extract::State, Json};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    Json,
+};
 use sea_orm::{ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
+use tracing::{event, instrument, Level};
 use utoipa::ToSchema;
 
 use crate::{
@@ -10,7 +16,7 @@ use crate::{
 use crate::{error::AppError, jwt::JWTPayload, AppState};
 
 /// 登录请求体
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema, Debug)]
 pub struct LoginRequest {
     /// 用户名
     #[schema(example = "yangzheh")]
@@ -20,8 +26,28 @@ pub struct LoginRequest {
     passwd: String,
 }
 
+impl From<JWTPayload> for String {
+    fn from(payload: JWTPayload) -> Self {
+        jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &payload,
+            &JWT_SETTING.get().unwrap().en_key,
+        )
+        .unwrap()
+    }
+}
+
+impl From<i32> for JWTPayload {
+    fn from(id: i32) -> Self {
+        Self {
+            id,
+            exp: jsonwebtoken::get_current_timestamp() + JWT_SETTING.get().unwrap().exp,
+        }
+    }
+}
+
 impl LoginRequest {
-    pub async fn validate(&self, conn: &DatabaseConnection) -> Result<JWTPayload, AppError> {
+    async fn validate(&self, conn: &DatabaseConnection) -> Result<JWTPayload, AppError> {
         use sha2::{Digest, Sha256};
         let user: Option<user::Model> = User::find()
             .filter(user::Column::Name.eq(&self.name))
@@ -40,12 +66,10 @@ impl LoginRequest {
             .map_err(|e| anyhow::format_err!(e))?
             .to_string();
         if hash == user.hash {
-            Ok(JWTPayload {
-                id: user.id,
-                exp: jsonwebtoken::get_current_timestamp()
-                    + crate::jwt::JWT_SETTING.get().unwrap().exp,
-            })
+            event!(Level::INFO, "successfully validate user {:?}", user.name);
+            Ok(user.id.into())
         } else {
+            event!(Level::INFO, "failed to validate user {:?}", user.name);
             Err(AppError::Unauthorized(format!(
                 "password is wrong [{}]",
                 &self.name
@@ -58,26 +82,29 @@ impl LoginRequest {
 #[derive(ToSchema, Serialize)]
 pub struct LoginResponse {
     /// JWT
+    #[schema(
+        example = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwiZXhwIjoxNzI4ODMzODA2fQ.iZwAs-j5ZRqi26MG7oVf0PL-hEHv3qbf6VnmeCHf5Sc"
+    )]
     pub token: String,
-    /// 是否注册
-    pub is_created: bool,
 }
 
 /// 登录或注册
 #[utoipa::path(
     post,
     path = "/login",
-    request_body = LoginPost,
+    request_body = LoginRequest,
     responses(
-        (status = 200, description = "成功登录", body = JWTPayload),
+        (status = 200, description = "成功登录", body = LoginResponse),
+        (status = 201, description = "成功注册", body = LoginResponse),
         (status = 401, description = "登录失败", body = AppErrorResponse),
     ),
-    tag = "User"
+    tag = "user"
 )]
+#[instrument(skip(state))]
 pub async fn login_handler(
     State(state): State<AppState>,
     Json(user): Json<LoginRequest>,
-) -> Result<Json<LoginResponse>, AppError> {
+) -> Result<Response, AppError> {
     if user.name.is_empty() || user.passwd.is_empty() {
         return Err(AppError::BadRequest("name or passwd is empty".to_string()));
     }
@@ -92,20 +119,24 @@ pub async fn login_handler(
                 created_at: ActiveValue::Set(chrono::Utc::now().naive_utc()),
                 ..Default::default()
             };
-            let _ = User::insert(new_user).exec(&state.conn).await?;
-            user.validate(&state.conn).await?
+            let res = User::insert(new_user).exec(&state.conn).await?;
+            event!(Level::INFO, "create user {:?}", res);
+            let res: JWTPayload = res.last_insert_id.into();
+            return Ok((
+                StatusCode::CREATED,
+                Json(LoginResponse { token: res.into() }),
+            )
+                .into_response());
         }
         Err(e) => return Err(e),
     };
-    let payload = jsonwebtoken::encode(
-        &jsonwebtoken::Header::default(),
-        &payload,
-        &JWT_SETTING.get().unwrap().en_key,
-    )?;
-    Ok(Json(LoginResponse {
-        token: payload,
-        is_created: false,
-    }))
+    Ok((
+        StatusCode::OK,
+        Json(LoginResponse {
+            token: payload.into(),
+        }),
+    )
+        .into_response())
 }
 
 fn gen_hash_and_salt(passwd: &String) -> Result<(String, String), anyhow::Error> {

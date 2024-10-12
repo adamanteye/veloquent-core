@@ -29,7 +29,7 @@ use param::Args;
 use view::*;
 
 #[doc(hidden)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct AppState {
     conn: DatabaseConnection,
 }
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
         .compact()
         .with_file(true)
         .with_line_number(false)
-        .with_thread_ids(true)
+        .with_thread_ids(false)
         .with_target(true)
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;

@@ -1,6 +1,6 @@
 #![warn(missing_docs)]
 
-//! Voloquent 后端服务
+//! Veloquent 后端服务
 //!
 //! 队名 *Veloquent* 结合拉丁语 _velox_(快速) 和 _eloquent_ (雄辩), 表达快速而清晰的沟通能力.
 
@@ -15,9 +15,12 @@ use utoipa_swagger_ui::SwaggerUi;
 pub mod config;
 #[doc(hidden)]
 mod entity;
+pub mod error;
+mod jwt;
 pub mod param;
 #[doc(hidden)]
 mod utility;
+mod view;
 
 use config::Config;
 use migration::{Migrator, MigratorTrait};
@@ -35,7 +38,7 @@ struct AppState {
 }
 
 #[doc(hidden)]
-#[instrument(name = "volequent_main")]
+#[instrument(name = "veloquent_main")]
 #[tokio::main]
 async fn main() -> Result<()> {
     let subscriber = tracing_subscriber::fmt()
@@ -57,7 +60,7 @@ async fn main() -> Result<()> {
         "postgres://{}:{}@{}:{}/{}",
         config.database.username,
         config.database.password,
-        config.database.host,
+        config.database.address,
         config.database.port,
         config.database.name,
     ));
@@ -67,13 +70,28 @@ async fn main() -> Result<()> {
         Level::INFO,
         "connected to database {} at {}:{} as {}",
         config.database.name,
-        config.database.host,
+        config.database.address,
         config.database.port,
         config.database.username
     );
     Migrator::up(&db, None).await?;
-
     event!(Level::WARN, "Migrated database");
+    let secret = config.authentication.secret;
+    jwt::JWT_SETTING
+        .set(jwt::JwtSetting {
+            exp: config.authentication.exp_after,
+            de_key: jwt::DecodingKey::from_secret(secret.as_bytes()),
+            en_key: jwt::EncodingKey::from_secret(secret.as_bytes()),
+        })
+        .map_err(|_| Err::<(), ()>(()))
+        .unwrap();
+    jwt::JWT_ALG
+        .set(jsonwebtoken::Validation::new(
+            jsonwebtoken::Algorithm::HS256,
+        ))
+        .map_err(|_| Err::<(), ()>(()))
+        .unwrap();
+
     let state = AppState { conn: db };
     let app = Router::new()
         .merge(SwaggerUi::new("/doc").url("/api-docs/openapi.json", ApiDoc::openapi()))

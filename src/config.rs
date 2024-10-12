@@ -12,7 +12,7 @@ pub struct Database {
     /// 密码
     pub password: String,
     /// 主机
-    pub host: String,
+    pub address: String,
     /// 端口
     pub port: u16,
     /// 最大连接数
@@ -28,6 +28,15 @@ pub struct Listen {
     pub port: u16,
 }
 
+/// 鉴权配置
+#[derive(Deserialize)]
+pub struct Authentication {
+    /// 登陆过期时间
+    pub exp_after: u64,
+    /// 私钥
+    pub secret: String,
+}
+
 /// 后端配置
 #[derive(Deserialize)]
 pub struct Config {
@@ -35,4 +44,6 @@ pub struct Config {
     pub database: Database,
     /// 监听配置
     pub listen: Listen,
+    /// 鉴权配置
+    pub authentication: Authentication,
 }

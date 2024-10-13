@@ -41,13 +41,13 @@ where
         let TypedHeader(Authorization(bearer)) = parts
             .extract::<TypedHeader<Authorization<Bearer>>>()
             .await
-            .map_err(|e| AppError::Unauthorized(format!("Token not found: {}", e)))?;
+            .map_err(|e| AppError::BadRequest(format!("token not found: [{}]", e)))?;
         let token = jsonwebtoken::decode::<JWTPayload>(
             bearer.token(),
             &JWT_SETTING.get().unwrap().de_key,
             JWT_ALG.get().unwrap(),
         )
-        .map_err(|e| AppError::Unauthorized(e.to_string()))?;
+        .map_err(|e| AppError::Unauthorized(format!("invalid JWT: [{}]", e)))?;
         Ok(token.claims)
     }
 }

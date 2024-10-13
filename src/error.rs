@@ -27,6 +27,8 @@ pub enum AppError {
 pub struct AppErrorResponse {
     /// 错误信息
     msg: String,
+    /// 当前 API 版本
+    ver: &'static str,
 }
 
 impl<E> From<E> for AppError
@@ -48,7 +50,14 @@ impl IntoResponse for AppError {
             Self::Conflict(msg) => (StatusCode::CONFLICT, msg),
             Self::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
         };
-        (status, Json(AppErrorResponse { msg: message })).into_response()
+        (
+            status,
+            Json(AppErrorResponse {
+                msg: message,
+                ver: env!("CARGO_PKG_VERSION"),
+            }),
+        )
+            .into_response()
     }
 }
 

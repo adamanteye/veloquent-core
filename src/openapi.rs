@@ -1,3 +1,4 @@
+use super::view::*;
 use crate::*;
 use utoipa::OpenApi;
 
@@ -5,12 +6,14 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        user::login_handler
+        login::login_handler,
+        user_profile::get_self_profile,
     ),
     components(
         schemas(
             error::AppErrorResponse,
-            user::LoginRequest, user::LoginResponse
+            login::LoginRequest, login::LoginResponse,
+            user_profile::UserProfile,
         )
     ),
     tags(

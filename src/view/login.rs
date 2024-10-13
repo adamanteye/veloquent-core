@@ -1,4 +1,4 @@
-use axum::{
+pub use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -11,9 +11,11 @@ use utoipa::ToSchema;
 
 use crate::{
     entity::{prelude::*, *},
+    error::AppError,
+    jwt::JWTPayload,
     jwt::JWT_SETTING,
+    AppState,
 };
-use crate::{error::AppError, jwt::JWTPayload, AppState};
 
 /// 登录请求体
 #[derive(Deserialize, ToSchema, Debug)]
@@ -23,7 +25,7 @@ pub struct LoginRequest {
     name: String,
     /// 密码
     #[schema(example = "123456")]
-    passwd: String,
+    password: String,
 }
 
 impl From<JWTPayload> for String {
@@ -56,7 +58,7 @@ impl LoginRequest {
             "user not exist: [{}]",
             &self.name
         )))?;
-        if validate_passwd(&self.passwd, &user.salt, &user.hash)? {
+        if validate_passwd(&self.password, &user.salt, &user.hash)? {
             event!(Level::INFO, "successfully validate user {:?}", user.name);
             Ok(user.id.into())
         } else {
@@ -82,9 +84,9 @@ pub struct LoginResponse {
     path = "/login",
     request_body = LoginRequest,
     responses(
-        (status = 200, description = "成功登录", body = LoginResponse),
-        (status = 201, description = "成功注册", body = LoginResponse),
-        (status = 401, description = "登录失败", body = AppErrorResponse, example = json!({"msg":"wrong password"})),
+        (status = 200, description = "登录成功", body = LoginResponse),
+        (status = 201, description = "注册成功", body = LoginResponse),
+        (status = 401, description = "登录失败", body = AppErrorResponse, example = json!({"msg":"wrong password","ver": "0.1.1"})),
     ),
     tag = "user"
 )]
@@ -93,13 +95,13 @@ pub async fn login_handler(
     State(state): State<AppState>,
     Json(user): Json<LoginRequest>,
 ) -> Result<Response, AppError> {
-    if user.name.is_empty() || user.passwd.is_empty() {
+    if user.name.is_empty() || user.password.is_empty() {
         return Err(AppError::BadRequest("name or passwd is empty".to_string()));
     }
     let payload = match user.validate(&state.conn).await {
         Ok(p) => p,
         Err(AppError::NotFound(_)) => {
-            let (hash, salt) = gen_hash_and_salt(&user.passwd)?;
+            let (hash, salt) = gen_hash_and_salt(&user.password)?;
             let new_user = user::ActiveModel {
                 name: ActiveValue::Set(user.name.to_string()),
                 salt: ActiveValue::Set(salt),

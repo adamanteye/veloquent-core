@@ -7,8 +7,8 @@ name = "veloquent"
 max_connections = 10
 
 [listen]
-address = "127.0.0.1"
-port = 8080
+address = "0.0.0.0"
+port = 80
 
 [authentication]
 secret = "secret"

@@ -2,7 +2,7 @@ FROM rust:1.81.0 as builder
 WORKDIR /usr/src/veloquent-core
 COPY . .
 RUN export CARGO_HOME=.cargo \
-    && mkdir .cargo \
+    && mkdir -p .cargo \
     && cp bfsu.toml $CARGO_HOME/config.toml \
     && cargo install --path .
 

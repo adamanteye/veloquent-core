@@ -1,7 +1,10 @@
 FROM rust:1.81.0 as builder
 WORKDIR /usr/src/veloquent-core
 COPY . .
-RUN cargo install --path .
+RUN export CARGO_HOME=.cargo \
+    && mkdir .cargo \
+    && cp bfsu.toml $CARGO_HOME/config.toml \
+    && cargo install --path .
 
 FROM debian:bookworm-slim as runner
 COPY --from=builder /usr/local/cargo/bin/veloquent-core /usr/local/bin/veloquent-core

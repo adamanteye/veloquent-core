@@ -31,6 +31,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(User::Gender).integer())
                     .col(ColumnDef::new(User::Email).string().unique_key())
                     .col(ColumnDef::new(User::Phone).string().unique_key())
+                    .col(ColumnDef::new(User::Avatar).string())
                     .to_owned(),
             )
             .await
@@ -56,4 +57,5 @@ pub enum User {
     Gender,
     Email,
     Phone,
+    Avatar,
 }

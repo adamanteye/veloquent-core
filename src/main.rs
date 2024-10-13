@@ -5,12 +5,10 @@
 //! 队名 *Veloquent* 结合拉丁语 _velox_(快速) 和 _eloquent_ (雄辩), 表达快速而清晰的沟通能力.
 
 use anyhow::Result;
-use axum::{routing::post, Router};
+
 use clap::Parser;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use tracing::{event, instrument, Level};
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 pub mod config;
 #[doc(hidden)]
@@ -26,13 +24,7 @@ pub mod view;
 use config::Config;
 use migration::{Migrator, MigratorTrait};
 use param::Args;
-use view::*;
-
-#[doc(hidden)]
-#[derive(Clone, Debug)]
-struct AppState {
-    conn: DatabaseConnection,
-}
+use view::AppState;
 
 #[doc(hidden)]
 #[instrument(name = "veloquent_main")]
@@ -89,16 +81,13 @@ async fn main() -> Result<()> {
         .unwrap();
 
     let state = AppState { conn: db };
-    let app = Router::new()
-        .merge(SwaggerUi::new("/doc").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
-        .route("/login", post(user::login_handler))
-        .with_state(state);
+    let app = view::router(state);
     let listener =
         tokio::net::TcpListener::bind(format!("{}:{}", config.listen.address, config.listen.port))
             .await?;
     event!(
         Level::INFO,
-        "listening on {}:{}",
+        "listening on http://{}:{}",
         config.listen.address,
         config.listen.port
     );

@@ -101,8 +101,8 @@ mod test {
     path = "/user/profile",
     responses(
         (status = 200, description = "获取成功", body = UserProfile),
-        (status = 400, description = "提取 Authorization Bearer 失败", example = json!({"msg":"token not found: [invalid HTTP header (authorization)]","ver": "0.1.1"})),
-        (status = 401, description = "验证用户失败", example = json!({"msg":"invalid JWT: [InvalidSignature]","ver": "0.1.1"}))
+        (status = 400, description = "提取 Authorization Bearer 失败", body = AppErrorResponse, example = json!({"msg":"token not found: [invalid HTTP header (authorization)]","ver": "0.1.1"})),
+        (status = 401, description = "验证用户失败", body = AppErrorResponse, example = json!({"msg":"invalid JWT: [InvalidSignature]","ver": "0.1.1"}))
     ),
     tag = "user"
 )]

@@ -6,12 +6,14 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        login::login_handler
+        login::login_handler,
+        user_profile::get_self_profile,
     ),
     components(
         schemas(
             error::AppErrorResponse,
-            login::LoginRequest, login::LoginResponse
+            login::LoginRequest, login::LoginResponse,
+            user_profile::UserProfile
         )
     ),
     tags(

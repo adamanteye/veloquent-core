@@ -8,7 +8,7 @@ max_connections = 10
 
 [listen]
 address = "127.0.0.1"
-port = 8000
+port = 8080
 
 [authentication]
 secret = "secret"

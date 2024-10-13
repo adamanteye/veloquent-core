@@ -13,7 +13,7 @@ use utoipa::OpenApi;
         schemas(
             error::AppErrorResponse,
             login::LoginRequest, login::LoginResponse,
-            user_profile::UserProfile
+            user_profile::UserProfile,
         )
     ),
     tags(

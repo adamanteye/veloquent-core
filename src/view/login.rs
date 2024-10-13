@@ -84,8 +84,8 @@ pub struct LoginResponse {
     path = "/login",
     request_body = LoginRequest,
     responses(
-        (status = 200, description = "成功登录", body = LoginResponse),
-        (status = 201, description = "成功注册", body = LoginResponse),
+        (status = 200, description = "登录成功", body = LoginResponse),
+        (status = 201, description = "注册成功", body = LoginResponse),
         (status = 401, description = "登录失败", body = AppErrorResponse, example = json!({"msg":"wrong password","ver": "0.1.1"})),
     ),
     tag = "user"

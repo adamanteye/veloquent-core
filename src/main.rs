@@ -91,6 +91,13 @@ async fn main() -> Result<()> {
         config.listen.address,
         config.listen.port
     );
+    event!(
+        Level::INFO,
+        "serve doc on http://{}:{}{}",
+        config.listen.address,
+        config.listen.port,
+        view::DOC_PATH
+    );
     axum::serve(listener, app)
         .with_graceful_shutdown(utility::shutdown_signal())
         .await?;

@@ -21,11 +21,14 @@ pub struct AppState {
     pub conn: DatabaseConnection,
 }
 
+/// Swagger Open API 文档路径
+pub static DOC_PATH: &str = "/doc";
+
 /// Veloquent 路由
 pub fn router(state: AppState) -> Router {
     let auth = middleware::from_extractor::<JWTPayload>();
     Router::new()
-        .merge(SwaggerUi::new("/doc").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(SwaggerUi::new(DOC_PATH).url("/api-docs/openapi.json", ApiDoc::openapi()))
         .route("/login", post(login::login_handler))
         .route(
             "/user/profile",

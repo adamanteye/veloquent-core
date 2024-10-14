@@ -28,7 +28,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(User::Salt).string().not_null())
                     .col(ColumnDef::new(User::Hash).string().not_null())
                     .col(ColumnDef::new(User::CreatedAt).timestamp().not_null())
-                    .col(ColumnDef::new(User::Gender).integer())
+                    .col(ColumnDef::new(User::Gender).integer().not_null())
                     .col(ColumnDef::new(User::Email).string().unique_key())
                     .col(ColumnDef::new(User::Phone).string().unique_key())
                     .col(ColumnDef::new(User::Avatar).string())

@@ -13,7 +13,7 @@ pub struct Model {
     pub salt: String,
     pub hash: String,
     pub created_at: DateTime,
-    pub gender: Option<i32>,
+    pub gender: i32,
     #[sea_orm(unique)]
     pub email: Option<String>,
     #[sea_orm(unique)]

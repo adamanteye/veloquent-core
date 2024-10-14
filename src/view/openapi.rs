@@ -1,5 +1,5 @@
-use super::view::*;
-use crate::*;
+use super::*;
+use crate::error;
 use utoipa::OpenApi;
 
 #[doc(hidden)]

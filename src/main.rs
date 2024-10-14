@@ -15,10 +15,9 @@ pub mod config;
 pub mod entity;
 pub mod error;
 pub mod jwt;
-mod openapi;
 pub mod param;
 #[doc(hidden)]
-mod utility;
+pub mod utility;
 pub mod view;
 
 use config::Config;

@@ -1,7 +1,7 @@
 //! Veloquent 请求处理
 
 pub use super::entity;
-pub use crate::error::AppError;
+pub use crate::{error::AppError, utility};
 
 pub use axum::{
     extract::State,
@@ -19,10 +19,12 @@ pub use utoipa::ToSchema;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-pub(super) mod login;
-pub(super) mod user_profile;
+mod login;
+mod openapi;
+mod user_profile;
+mod user_register;
 
-use super::{jwt::JWTPayload, openapi::ApiDoc};
+use super::jwt::JWTPayload;
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -37,8 +39,9 @@ pub(super) static DOC_PATH: &str = "/doc";
 pub fn router(state: AppState) -> Router {
     let auth = middleware::from_extractor::<JWTPayload>();
     Router::new()
-        .merge(SwaggerUi::new(DOC_PATH).url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(SwaggerUi::new(DOC_PATH).url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
         .route("/login", post(login::login_handler))
+        .route("/register", post(user_register::register_handler))
         .route(
             "/user/profile",
             get(user_profile::get_self_profile).route_layer(auth),

@@ -37,7 +37,7 @@ impl From<user::Model> for UserProfile {
         Self {
             id: user.id,
             name: user.name,
-            gender: user.gender.unwrap_or_default(),
+            gender: user.gender,
             alias: user.alias.unwrap_or_default(),
             email: user.email.unwrap_or_default(),
             phone: user.phone.unwrap_or_default(),
@@ -65,7 +65,7 @@ mod test {
             avatar: Option::None,
             bio: Option::None,
             link: Option::None,
-            gender: Option::None,
+            gender: 0,
             salt: "KxlaYxELSZSGYCEsm5dE00BTTxnZ10".to_string(),
             hash: "74491363c6cc8c851ed7e1ea3279741795cf4e1f9534b125562ff7030f295eb7".to_string(),
         };

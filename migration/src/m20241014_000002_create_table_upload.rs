@@ -1,5 +1,7 @@
 use sea_orm_migration::prelude::*;
 
+use super::m20241012_000001_create_table_user::User;
+
 pub struct Migration;
 
 impl MigrationName for Migration {
@@ -11,7 +13,7 @@ impl MigrationName for Migration {
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
+        let _ = manager
             .create_table(
                 Table::create()
                     .table(Upload::Table)
@@ -19,11 +21,29 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Upload::Typ).string().not_null())
                     .to_owned(),
             )
+            .await;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .from(User::Table, User::Avatar)
+                    .to(Upload::Table, Upload::Uuid)
+                    .on_delete(ForeignKeyAction::SetNull)
+                    .on_update(ForeignKeyAction::SetNull)
+                    .name("FK_USER_AVATAR_UPLOAD")
+                    .to_owned(),
+            )
             .await
     }
 
-    // Define how to rollback this migration: Drop the Bakery table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        let _ = manager
+            .drop_foreign_key(
+                ForeignKey::drop()
+                    .name("FK_USER_AVATAR_UPLOAD")
+                    .table(User::Table)
+                    .to_owned(),
+            )
+            .await;
         manager
             .drop_table(Table::drop().table(Upload::Table).to_owned())
             .await

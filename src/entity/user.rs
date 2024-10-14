@@ -24,6 +24,21 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::upload::Entity",
+        from = "Column::Avatar",
+        to = "super::upload::Column::Uuid",
+        on_update = "SetNull",
+        on_delete = "SetNull"
+    )]
+    Upload,
+}
+
+impl Related<super::upload::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Upload.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

@@ -58,6 +58,7 @@ sea-orm = { workspace = true, features = [
     "sqlx-postgres",
     "runtime-tokio-rustls",
     "with-uuid",
+    "macros",
 ] }
 tokio = { workspace = true, features = ["signal", "rt-multi-thread"] }
 axum-extra = { workspace = true, features = ["typed-header"] }

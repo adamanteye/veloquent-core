@@ -63,6 +63,7 @@ pub async fn login_handler(
         return Err(AppError::BadRequest("name or passwd is empty".to_string()));
     }
     let payload = user.validate(&state.conn).await?;
+    event!(Level::INFO, "user login [{}]", user.name);
     Ok((
         StatusCode::OK,
         Json(LoginResponse {

@@ -1,7 +1,7 @@
 use super::*;
 use entity::prelude::User;
 
-/// 获取用户个人信息
+/// 删除用户自己
 #[utoipa::path(delete, path = "/user/profile", responses((status = 204, description = "删除成功")), tag = "user")]
 #[instrument(skip(state))]
 pub async fn delete_user_handler(

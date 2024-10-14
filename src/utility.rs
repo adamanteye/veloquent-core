@@ -22,14 +22,19 @@ pub(super) async fn shutdown_signal() {
 
 use {once_cell::sync::Lazy, regex::Regex};
 
-pub(super) fn good_email(regex: &str) -> bool {
+pub fn good_email(email: &str) -> bool {
     static RE: Lazy<Regex> = Lazy::new(|| {
         Regex::new(
             r"^([a-z0-9_+]([a-z0-9_+.]*[a-z0-9_+])?)@([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6})",
         )
         .unwrap()
     });
-    RE.is_match(regex)
+    RE.is_match(email)
+}
+
+pub fn good_phone(phone: &str) -> bool {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]{13}").unwrap());
+    RE.is_match(phone)
 }
 
 pub fn validate_passwd(passwd: &str, salt: &str, hash: &str) -> anyhow::Result<bool> {

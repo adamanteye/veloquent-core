@@ -1,9 +1,7 @@
 use super::*;
-use crate::utility::good_email;
-
 use entity::{prelude::User, user};
 use login::LoginResponse;
-use utility::{empty_string_as_err, gen_hash_and_salt};
+use utility::{empty_string_as_err, gen_hash_and_salt, good_email, good_phone};
 
 /// 用户创建请求体
 ///
@@ -44,6 +42,8 @@ impl TryFrom<RegisterProfile> for user::ActiveModel {
                 Err(AppError::BadRequest("gender not valid".to_string()))
             } else if p.email.clone().is_some_and(|e| !good_email(&e)) {
                 Err(AppError::BadRequest("invalid email".to_string()))
+            } else if p.phone.clone().is_some_and(|e| !good_phone(&e)) {
+                Err(AppError::BadRequest("invalid phone".to_string()))
             } else {
                 let (hash, salt) = gen_hash_and_salt(&p.password)?;
                 Ok(user::ActiveModel {
@@ -119,6 +119,22 @@ mod test {
         let p: Result<RegisterProfile, _> = serde_json::from_str(p);
         let p = user::ActiveModel::try_from(p.unwrap());
         assert!(p.is_ok());
+    }
+
+    #[test]
+    fn test_invalid_phone() {
+        let p = r#"{"name":"a","password":"b","phone":"1990000000a"}"#;
+        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
+        let p = user::ActiveModel::try_from(p.unwrap());
+        assert!(p.is_err());
+    }
+
+    #[test]
+    fn test_valid_phone() {
+        let p = r#"{"name":"a","password":"b","phone":"19900000009"}"#;
+        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
+        let p = user::ActiveModel::try_from(p.unwrap());
+        assert!(p.is_err());
     }
 
     #[test]

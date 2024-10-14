@@ -103,9 +103,7 @@ pub async fn get_self_profile_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
 ) -> Result<Json<UserProfile>, AppError> {
-    let user: Option<user::Model> = user::Entity::find_by_id(payload.id)
-        .one(&state.conn)
-        .await?;
+    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
         payload.id

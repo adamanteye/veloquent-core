@@ -504,9 +504,9 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "coverage-helper"
-version = "0.1.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fd441a9eb45a44e9dfa9ed405d4ab521f1b447ed62ef5d67ddc5a334a21b5ca"
+checksum = "8174551717bb3d1e75935e38d33f5f8ee8f680dd8dd42c90851e6c644faad14e"
 
 [[package]]
 name = "cpufeatures"

@@ -1,4 +1,5 @@
 #![warn(missing_docs)]
+#![cfg_attr(all(coverage_nightly, test), feature(coverage_attribute))]
 
 //! Veloquent 后端服务
 //!

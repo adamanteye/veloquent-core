@@ -52,6 +52,8 @@ impl From<user::Model> for UserProfile {
 #[cfg(test)]
 mod test {
     use super::*;
+    use coverage_helper::test;
+
     #[test]
     fn test_profile_from_entity() {
         let created_at = chrono::Utc::now().naive_utc();
@@ -78,8 +80,8 @@ mod test {
                 phone: String::default(),
                 created_at,
                 gender: 0,
+                avatar: uuid::Uuid::default().to_string(),
                 alias: String::default(),
-                avatar: String::default(),
                 bio: String::default(),
                 link: String::default(),
             }

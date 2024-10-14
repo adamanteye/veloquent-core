@@ -93,6 +93,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use coverage_helper::test;
 
     #[test]
     fn test_hash_and_salt() {

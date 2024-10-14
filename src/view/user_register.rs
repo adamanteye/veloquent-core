@@ -98,6 +98,8 @@ pub async fn register_handler(
 #[cfg(test)]
 mod test {
     use super::*;
+    use coverage_helper::test;
+
     #[test]
     fn test_empty_user_or_password() {
         let p = r#"{"name":"","password":""}"#;

@@ -41,7 +41,7 @@ rand = "0.8.5"
 regex = "1.11.0"
 uuid = "1.10.0"
 # With llvm-cov
-coverage-helper = "0.1"
+coverage-helper = "0.2"
 
 [package]
 name = "veloquent-core"
@@ -51,6 +51,9 @@ edition.workspace = true
 license.workspace = true
 publish.workspace = true
 authors.workspace = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [dependencies]
 axum = { workspace = true }

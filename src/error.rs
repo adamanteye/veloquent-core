@@ -64,6 +64,7 @@ impl IntoResponse for AppError {
 #[cfg(test)]
 mod test {
     use super::*;
+    use coverage_helper::test;
 
     #[test]
     fn test_std_error_to_response() {

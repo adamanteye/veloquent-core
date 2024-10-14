@@ -3009,6 +3009,7 @@ dependencies = [
  "migration",
  "once_cell",
  "rand",
+ "regex",
  "sea-orm",
  "serde",
  "serde_json",

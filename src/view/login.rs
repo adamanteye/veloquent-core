@@ -1,21 +1,6 @@
-pub use axum::{
-    extract::State,
-    http::StatusCode,
-    response::{IntoResponse, Response},
-    Json,
-};
-use sea_orm::{ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
-use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
-use utoipa::ToSchema;
+use super::*;
 
-use crate::{
-    entity::{prelude::*, *},
-    error::AppError,
-    jwt::JWTPayload,
-    jwt::JWT_SETTING,
-    AppState,
-};
+use entity::{prelude::User, user};
 
 /// 登录请求体
 #[derive(Deserialize, ToSchema, Debug)]
@@ -26,26 +11,6 @@ pub struct LoginRequest {
     /// 密码
     #[schema(example = "123456")]
     password: String,
-}
-
-impl From<JWTPayload> for String {
-    fn from(payload: JWTPayload) -> Self {
-        jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
-            &payload,
-            &JWT_SETTING.get().unwrap().en_key,
-        )
-        .unwrap()
-    }
-}
-
-impl From<i32> for JWTPayload {
-    fn from(id: i32) -> Self {
-        Self {
-            id,
-            exp: jsonwebtoken::get_current_timestamp() + JWT_SETTING.get().unwrap().exp,
-        }
-    }
 }
 
 impl LoginRequest {
@@ -78,7 +43,7 @@ pub struct LoginResponse {
     pub token: String,
 }
 
-/// 登录或注册
+/// 登录
 #[utoipa::path(
     post,
     path = "/login",

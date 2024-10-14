@@ -19,3 +19,15 @@ pub(super) async fn shutdown_signal() {
     }
     tracing::event!(tracing::Level::INFO, "gracefully shutting down");
 }
+
+use {once_cell::sync::Lazy, regex::Regex};
+
+pub(super) fn good_email(regex: &str) -> bool {
+    static RE: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(
+            r"^([a-z0-9_+]([a-z0-9_+.]*[a-z0-9_+])?)@([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6})",
+        )
+        .unwrap()
+    });
+    RE.is_match(regex)
+}

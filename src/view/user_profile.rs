@@ -1,13 +1,5 @@
-use axum::{extract::State, Json};
-use sea_orm::EntityTrait;
-use serde::Serialize;
-use utoipa::ToSchema;
-
-use crate::{
-    entity::user,
-    error::AppError,
-    view::{AppState, JWTPayload},
-};
+use super::*;
+use entity::user;
 
 /// 用户个人信息
 #[derive(Serialize, ToSchema, PartialEq, Debug)]
@@ -97,7 +89,7 @@ mod test {
 
 /// 获取用户个人信息
 #[utoipa::path(
-    post,
+    get,
     path = "/user/profile",
     responses(
         (status = 200, description = "获取成功", body = UserProfile),
@@ -106,6 +98,7 @@ mod test {
     ),
     tag = "user"
 )]
+#[instrument(skip(state))]
 pub async fn get_self_profile(
     State(state): State<AppState>,
     payload: JWTPayload,

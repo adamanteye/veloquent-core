@@ -12,7 +12,7 @@ use tracing::{event, instrument, Level};
 
 pub mod config;
 #[doc(hidden)]
-mod entity;
+pub mod entity;
 pub mod error;
 pub mod jwt;
 mod openapi;

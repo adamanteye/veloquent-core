@@ -23,12 +23,32 @@ pub(super) struct JwtSetting {
 }
 
 /// JWT 载荷
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct JWTPayload {
     /// 用户唯一标识
     pub id: i32,
     /// 过期时间戳
     pub exp: u64,
+}
+
+impl From<JWTPayload> for String {
+    fn from(payload: JWTPayload) -> Self {
+        jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &payload,
+            &JWT_SETTING.get().unwrap().en_key,
+        )
+        .unwrap()
+    }
+}
+
+impl From<i32> for JWTPayload {
+    fn from(id: i32) -> Self {
+        Self {
+            id,
+            exp: jsonwebtoken::get_current_timestamp() + JWT_SETTING.get().unwrap().exp,
+        }
+    }
 }
 
 #[async_trait]

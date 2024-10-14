@@ -1,12 +1,21 @@
 //! Veloquent 请求处理
 
+pub use super::entity;
+pub use crate::error::AppError;
+
 pub use axum::{
     extract::State,
+    http::StatusCode,
     middleware,
+    response::{IntoResponse, Response},
     routing::{get, post},
-    Router,
+    Json, Router,
 };
-use sea_orm::DatabaseConnection;
+pub use sea_orm::{ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+pub use serde::{Deserialize, Serialize};
+pub use tracing::{event, instrument, Level};
+pub use utoipa::ToSchema;
+
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -22,7 +31,7 @@ pub struct AppState {
 }
 
 /// Swagger Open API 文档路径
-pub static DOC_PATH: &str = "/doc";
+pub(super) static DOC_PATH: &str = "/doc";
 
 /// Veloquent 路由
 pub fn router(state: AppState) -> Router {

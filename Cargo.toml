@@ -39,6 +39,8 @@ base16ct = "0.2.0"
 once_cell = "1.20.2"
 rand = "0.8.5"
 regex = "1.11.0"
+# With llvm-cov
+coverage-helper = "0.1"
 
 [package]
 name = "veloquent-core"
@@ -74,3 +76,5 @@ base16ct = { workspace = true }
 sha2 = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
+[dev-dependencies]
+coverage-helper = { workspace = true }

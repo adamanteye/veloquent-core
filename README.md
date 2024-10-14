@@ -10,7 +10,7 @@
 
 运行 llvm-cov 工具
 ```sh
-cargo llvm-cov
+cargo llvm-cov --no-clean --ignore-filename-regex=src/entity/.\*
 ```
 
 ## 调试说明

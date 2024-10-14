@@ -94,3 +94,38 @@ pub async fn register_handler(
     )
         .into_response())
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_empty_user_or_password() {
+        let p = r#"{"name":"","password":""}"#;
+        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
+        assert!(p.is_err());
+    }
+
+    #[test]
+    fn test_invalid_email() {
+        let p = r#"{"name":"a","password":"b","email":"invalid"}"#;
+        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
+        let p = user::ActiveModel::try_from(p.unwrap());
+        assert!(p.is_err());
+    }
+
+    #[test]
+    fn test_valid_email() {
+        let p = r#"{"name":"a","password":"b","email":"adamanteye@mail.adamanteye.cc"}"#;
+        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
+        let p = user::ActiveModel::try_from(p.unwrap());
+        assert!(p.is_ok());
+    }
+
+    #[test]
+    fn test_invalid_gender() {
+        let p = r#"{"name":"a","password":"b","gender":-3}"#;
+        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
+        let p = user::ActiveModel::try_from(p.unwrap());
+        assert!(p.is_err());
+    }
+}

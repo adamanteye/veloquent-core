@@ -1,5 +1,5 @@
 use super::*;
-use entity::user;
+use entity::{prelude::User, user};
 
 /// 用户个人信息
 #[derive(Serialize, ToSchema, PartialEq, Debug)]
@@ -99,7 +99,7 @@ mod test {
     tag = "user"
 )]
 #[instrument(skip(state))]
-pub async fn get_self_profile(
+pub async fn get_self_profile_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
 ) -> Result<Json<UserProfile>, AppError> {

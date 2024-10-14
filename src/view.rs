@@ -11,7 +11,9 @@ pub use axum::{
     routing::{get, post},
     Json, Router,
 };
-pub use sea_orm::{ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+pub use sea_orm::{
+    ActiveValue, ColumnTrait, DatabaseConnection, DeleteResult, EntityTrait, QueryFilter,
+};
 pub use serde::{Deserialize, Serialize};
 pub use tracing::{event, instrument, Level};
 pub use utoipa::ToSchema;
@@ -21,6 +23,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 mod login;
 mod openapi;
+mod user_delete;
 mod user_profile;
 mod user_register;
 
@@ -44,7 +47,9 @@ pub fn router(state: AppState) -> Router {
         .route("/register", post(user_register::register_handler))
         .route(
             "/user/profile",
-            get(user_profile::get_self_profile).route_layer(auth),
+            get(user_profile::get_self_profile_handler)
+                .delete(user_delete::delete_user_handler)
+                .route_layer(auth),
         )
         .with_state(state)
 }

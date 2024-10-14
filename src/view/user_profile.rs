@@ -42,7 +42,7 @@ impl From<user::Model> for UserProfile {
             email: user.email.unwrap_or_default(),
             phone: user.phone.unwrap_or_default(),
             created_at: user.created_at,
-            avatar: user.avatar.unwrap_or_default(),
+            avatar: user.avatar.unwrap_or_default().to_string(),
             bio: user.bio.unwrap_or_default(),
             link: user.link.unwrap_or_default(),
         }

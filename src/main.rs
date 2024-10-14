@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
         config.database.name,
     ));
     opt.max_connections(config.database.max_connections);
+    event!(Level::INFO, "connecting to database");
     let db: DatabaseConnection = Database::connect(opt).await?;
     event!(
         Level::INFO,

@@ -18,7 +18,7 @@ pub struct Model {
     pub email: Option<String>,
     #[sea_orm(unique)]
     pub phone: Option<String>,
-    pub avatar: Option<String>,
+    pub avatar: Option<Uuid>,
     pub bio: Option<String>,
     pub link: Option<String>,
 }

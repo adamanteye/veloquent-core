@@ -10,7 +10,6 @@ impl MigrationName for Migration {
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
-    // Define how to apply this migration: Create the Bakery table.
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .create_table(
@@ -31,7 +30,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(User::Gender).integer().not_null())
                     .col(ColumnDef::new(User::Email).string().unique_key())
                     .col(ColumnDef::new(User::Phone).string().unique_key())
-                    .col(ColumnDef::new(User::Avatar).string())
+                    .col(ColumnDef::new(User::Avatar).uuid())
                     .col(ColumnDef::new(User::Bio).string())
                     .col(ColumnDef::new(User::Link).string())
                     .to_owned(),
@@ -39,7 +38,6 @@ impl MigrationTrait for Migration {
             .await
     }
 
-    // Define how to rollback this migration: Drop the Bakery table.
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .drop_table(Table::drop().table(User::Table).to_owned())

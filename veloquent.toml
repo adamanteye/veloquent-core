@@ -13,3 +13,6 @@ port = 80
 [authentication]
 secret = "secret"
 exp_after = 86400
+
+[upload]
+dir = "/srv/veloquent/upload"

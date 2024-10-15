@@ -20,7 +20,7 @@ pub(super) async fn shutdown_signal() {
     tracing::event!(tracing::Level::INFO, "gracefully shutting down");
 }
 
-use {once_cell::sync::Lazy, regex::Regex};
+use {crate::entity, once_cell::sync::Lazy, regex::Regex};
 
 pub fn good_email(email: &str) -> bool {
     static RE: Lazy<Regex> = Lazy::new(|| {
@@ -88,6 +88,29 @@ where
         )),
         s => String::deserialize(s.into_deserializer()),
     }
+}
+
+use once_cell::sync::OnceCell;
+
+pub(super) static UPLOAD_DIR: OnceCell<String> = OnceCell::new();
+
+impl From<entity::upload::Model> for std::path::PathBuf {
+    fn from(upload: entity::upload::Model) -> Self {
+        let mut buf = std::path::PathBuf::new();
+        buf.push(UPLOAD_DIR.get().unwrap());
+        buf.push(upload.uuid.to_string());
+        buf.push(upload.typ);
+        buf.to_owned()
+    }
+}
+
+pub static UUID_NIL: Lazy<uuid::Uuid> = Lazy::new(uuid::Uuid::nil);
+
+static UPLOAD_UUID: Lazy<uuid::Uuid> =
+    Lazy::new(|| uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_URL, b"veloquent"));
+
+pub fn bytes_as_uuid(bytes: &axum::body::Bytes) -> uuid::Uuid {
+    uuid::Uuid::new_v5(&UPLOAD_UUID, bytes)
 }
 
 #[cfg(test)]

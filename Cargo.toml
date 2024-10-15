@@ -2,7 +2,7 @@
 members = ["migration"]
 
 [workspace.package]
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 license = "MIT"
 publish = false
@@ -64,7 +64,7 @@ sea-orm = { workspace = true, features = [
     "macros",
 ] }
 tokio = { workspace = true, features = ["signal", "rt-multi-thread"] }
-axum-extra = { workspace = true, features = ["typed-header"] }
+axum-extra = { workspace = true, features = ["typed-header", "protobuf"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

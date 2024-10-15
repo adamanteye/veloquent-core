@@ -2,6 +2,13 @@
 
 use serde::Deserialize;
 
+/// 上传配置
+#[derive(Deserialize)]
+pub struct Upload {
+    /// 上传保存路径
+    pub dir: String,
+}
+
 /// PostgreSQL 配置
 #[derive(Deserialize)]
 pub struct Database {
@@ -46,6 +53,8 @@ pub struct Config {
     pub listen: Listen,
     /// 鉴权配置
     pub authentication: Authentication,
+    /// 上传配置
+    pub upload: Upload,
 }
 
 #[cfg(test)]
@@ -71,6 +80,9 @@ port = 8000
 [authentication]
 secret = "secret"
 exp_after = 86400
+
+[upload]
+dir = "/srv/veloquent/upload"
 "#;
 
         assert!(toml::from_str::<Config>(config_file).is_ok());

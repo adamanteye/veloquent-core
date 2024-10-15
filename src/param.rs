@@ -7,6 +7,6 @@ use clap::Parser;
 #[command(version, about, long_about = None)]
 pub struct Args {
     /// 配置文件路径
-    #[arg(short, long, default_value = "/usr/local/etc/veloquent.toml")]
+    #[arg(short, long, default_value = "/usr/local/etc/veloquent/veloquent.toml")]
     pub config: String,
 }

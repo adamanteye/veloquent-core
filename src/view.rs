@@ -4,7 +4,8 @@ pub use super::entity;
 pub use crate::{error::AppError, utility};
 
 pub use axum::{
-    extract::State,
+    body::Bytes,
+    extract::{Path, Query, State},
     http::StatusCode,
     middleware,
     response::{IntoResponse, Response},
@@ -16,11 +17,12 @@ pub use sea_orm::{
 };
 pub use serde::{Deserialize, Serialize};
 pub use tracing::{event, instrument, Level};
-pub use utoipa::ToSchema;
+pub use utoipa::{IntoParams, ToSchema};
 
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+mod avatar;
 mod login;
 mod openapi;
 mod user_delete;
@@ -49,7 +51,11 @@ pub fn router(state: AppState) -> Router {
             "/user/profile",
             get(user_profile::get_self_profile_handler)
                 .delete(user_delete::delete_user_handler)
-                .route_layer(auth),
+                .route_layer(auth.clone()),
+        )
+        .route(
+            "/upload/avatar",
+            post(avatar::upload_avatar_handler).route_layer(auth),
         )
         .with_state(state)
 }

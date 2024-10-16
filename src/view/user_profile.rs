@@ -5,7 +5,7 @@ use entity::{prelude::User, user};
 #[derive(Serialize, ToSchema, PartialEq, Debug)]
 pub struct UserProfile {
     /// 主键索引
-    pub id: i32,
+    pub id: Uuid,
     /// 用户名
     pub name: String,
     /// 别名
@@ -53,12 +53,13 @@ impl From<user::Model> for UserProfile {
 mod test {
     use super::*;
     use coverage_helper::test;
+    use std::str::FromStr;
 
     #[test]
     fn test_profile_from_entity() {
         let created_at = chrono::Utc::now().naive_utc();
         let user = user::Model {
-            id: 2,
+            id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),
             name: "test".to_string(),
             alias: Option::None,
             email: Option::None,
@@ -74,7 +75,7 @@ mod test {
         assert_eq!(
             UserProfile::from(user),
             UserProfile {
-                id: 2,
+                id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),
                 name: "test".to_string(),
                 email: String::default(),
                 phone: String::default(),

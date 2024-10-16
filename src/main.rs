@@ -42,12 +42,12 @@ async fn main() -> Result<()> {
     event!(Level::WARN, "reading configuration from {:?}", config_path);
     let config = std::fs::read_to_string(config_path)?;
     let config: Config = toml::from_str(config.as_str())?;
-    std::fs::create_dir_all(&config.upload.dir)?;
     event!(
         Level::INFO,
         "set upload directory to {:?}",
         &config.upload.dir
     );
+    std::fs::create_dir_all(&config.upload.dir)?;
     let mut opt = ConnectOptions::new(format!(
         "postgres://{}:{}@{}:{}/{}",
         config.database.username,

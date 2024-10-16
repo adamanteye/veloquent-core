@@ -9,6 +9,7 @@ pub(super) use jsonwebtoken::{DecodingKey, EncodingKey};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 use crate::error::AppError;
 
@@ -26,7 +27,7 @@ pub(super) struct JwtSetting {
 #[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct JWTPayload {
     /// 用户唯一标识
-    pub id: i32,
+    pub id: Uuid,
     /// 过期时间戳
     pub exp: u64,
 }
@@ -42,8 +43,8 @@ impl From<JWTPayload> for String {
     }
 }
 
-impl From<i32> for JWTPayload {
-    fn from(id: i32) -> Self {
+impl From<Uuid> for JWTPayload {
+    fn from(id: Uuid) -> Self {
         Self {
             id,
             exp: jsonwebtoken::get_current_timestamp() + JWT_SETTING.get().unwrap().exp,

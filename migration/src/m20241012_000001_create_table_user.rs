@@ -17,10 +17,10 @@ impl MigrationTrait for Migration {
                     .table(User::Table)
                     .col(
                         ColumnDef::new(User::Id)
-                            .integer()
+                            .uuid()
                             .not_null()
-                            .auto_increment()
-                            .primary_key(),
+                            .primary_key()
+                            .extra("DEFAULT gen_random_uuid()"),
                     )
                     .col(ColumnDef::new(User::Name).string().not_null().unique_key())
                     .col(ColumnDef::new(User::Alias).string())

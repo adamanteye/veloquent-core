@@ -18,6 +18,7 @@ pub use sea_orm::{
 pub use serde::{Deserialize, Serialize};
 pub use tracing::{event, instrument, Level};
 pub use utoipa::{IntoParams, ToSchema};
+pub use uuid::Uuid;
 
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;

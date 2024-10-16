@@ -38,7 +38,7 @@ impl LoginRequest {
 pub struct LoginResponse {
     /// JWT
     #[schema(
-        example = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwiZXhwIjoxNzI4ODMzODA2fQ.iZwAs-j5ZRqi26MG7oVf0PL-hEHv3qbf6VnmeCHf5Sc"
+        example = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjQ1OWE0MjBhLTQxNDMtNGFkYy1hZjgxLWQ1NGRmMjg4YmJlZCIsImV4cCI6MTcyOTE1MzUyNn0.lAM0QjzaJvaB8KgTcnRfUrEDOBwiBLIJ2u6yOivzsSk"
     )]
     pub token: String,
 }

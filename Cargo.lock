@@ -3057,6 +3057,7 @@ dependencies = [
  "jsonwebtoken",
  "migration",
  "once_cell",
+ "prost",
  "rand",
  "regex",
  "sea-orm",

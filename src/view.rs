@@ -9,9 +9,10 @@ pub use axum::{
     http::StatusCode,
     middleware,
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
+pub use axum_extra::protobuf::Protobuf;
 pub use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DeleteResult, EntityTrait, QueryFilter,
 };

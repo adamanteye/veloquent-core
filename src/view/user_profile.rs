@@ -1,47 +1,41 @@
 use super::*;
 use entity::{prelude::User, user};
 
-/// 用户个人信息
-#[derive(Serialize, ToSchema, PartialEq, Debug)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, prost::Message, ToSchema)]
 pub struct UserProfile {
-    /// 主键索引
-    pub id: Uuid,
-    /// 用户名
+    #[prost(string, tag = "1")]
+    pub id: String,
+    #[prost(string, tag = "2")]
     pub name: String,
-    /// 别名
+    #[prost(string, tag = "3")]
     pub alias: String,
-    /// 邮件地址
+    #[prost(string, tag = "4")]
     pub email: String,
-    /// 手机号码
+    #[prost(string, tag = "5")]
     pub phone: String,
-    /// 创建时间
-    pub created_at: chrono::NaiveDateTime,
-    /// 性别
-    ///
-    /// | 数值 | 说明 |
-    /// | --- | --- |
-    /// | 0 | 未指定 |
-    /// | 1 | 女性 |
-    /// | 2 | 男性 |
-    pub gender: i32,
-    /// 个性简介
-    pub bio: String,
-    /// 个人链接
+    #[prost(string, tag = "6")]
     pub link: String,
-    /// 头像链接
+    #[prost(int32, tag = "7")]
+    pub gender: i32,
+    #[prost(string, tag = "8")]
+    pub bio: String,
+    #[prost(string, tag = "9")]
     pub avatar: String,
+    #[prost(string, tag = "10")]
+    pub created_at: String,
 }
 
 impl From<user::Model> for UserProfile {
     fn from(user: user::Model) -> Self {
         Self {
-            id: user.id,
+            id: user.id.into(),
             name: user.name,
             gender: user.gender,
             alias: user.alias.unwrap_or_default(),
             email: user.email.unwrap_or_default(),
             phone: user.phone.unwrap_or_default(),
-            created_at: user.created_at,
+            created_at: user.created_at.to_string(),
             avatar: user.avatar.unwrap_or_default().to_string(),
             bio: user.bio.unwrap_or_default(),
             link: user.link.unwrap_or_default(),
@@ -75,11 +69,11 @@ mod test {
         assert_eq!(
             UserProfile::from(user),
             UserProfile {
-                id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),
+                id: "264107cf-8559-41b0-a8fe-074531695bf6".to_string(),
                 name: "test".to_string(),
                 email: String::default(),
                 phone: String::default(),
-                created_at,
+                created_at: created_at.to_string(),
                 gender: 0,
                 avatar: uuid::Uuid::default().to_string(),
                 alias: String::default(),
@@ -90,27 +84,27 @@ mod test {
     }
 }
 
-/// 获取用户个人信息
+/// 获取用户信息
+///
+/// 返回的格式为 protobuf 数据
 #[utoipa::path(
     get,
     path = "/user/profile",
     responses(
-        (status = 200, description = "获取成功", body = UserProfile),
+        (status = 200, description = "获取成功, 返回 protobuf 数据", body = UserProfile),
         (status = 400, description = "提取 Authorization Bearer 失败", body = AppErrorResponse, example = json!({"msg":"token not found: [invalid HTTP header (authorization)]","ver": "0.1.1"})),
         (status = 401, description = "验证用户失败", body = AppErrorResponse, example = json!({"msg":"invalid JWT: [InvalidSignature]","ver": "0.1.1"}))
     ),
     tag = "user"
 )]
-#[instrument(skip(state))]
 pub async fn get_self_profile_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
-) -> Result<Json<UserProfile>, AppError> {
+) -> Result<Protobuf<UserProfile>, AppError> {
     let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
         payload.id
     )))?;
-
-    Ok(Json(UserProfile::from(user)))
+    Ok(Protobuf(UserProfile::from(user)))
 }

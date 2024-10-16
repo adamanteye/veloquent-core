@@ -8,7 +8,7 @@ use utoipa::OpenApi;
     paths(
         login::login_handler,
         user_register::register_handler,
-        user_profile::get_self_profile_handler,
+        // user_profile::get_self_profile_handler,
         user_delete::delete_user_handler,
         avatar::upload_avatar_handler,
     ),
@@ -17,7 +17,6 @@ use utoipa::OpenApi;
             error::AppErrorResponse,
             user_register::RegisterProfile,
             login::LoginRequest, login::LoginResponse,
-            user_profile::UserProfile,
         )
     ),
     tags(

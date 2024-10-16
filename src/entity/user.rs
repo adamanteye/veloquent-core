@@ -15,9 +15,9 @@ pub struct Model {
     pub created_at: DateTime,
     pub gender: i32,
     #[sea_orm(unique)]
-    pub email: Option<String>,
+    pub email: String,
     #[sea_orm(unique)]
-    pub phone: Option<String>,
+    pub phone: String,
     pub avatar: Option<Uuid>,
     pub bio: Option<String>,
     pub link: Option<String>,

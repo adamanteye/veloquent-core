@@ -3,13 +3,15 @@ use entity::{prelude::User, user};
 use utility::validate_passwd;
 
 /// 登录请求体
-#[derive(Deserialize, ToSchema, Debug)]
+#[derive(ToSchema, prost::Message)]
 pub struct LoginRequest {
     /// 用户名
     #[schema(example = "yangzheh")]
+    #[prost(string, tag = "1")]
     name: String,
     /// 密码
     #[schema(example = "123456")]
+    #[prost(string, tag = "2")]
     password: String,
 }
 
@@ -57,7 +59,7 @@ pub struct LoginResponse {
 #[instrument(skip(state))]
 pub async fn login_handler(
     State(state): State<AppState>,
-    Json(user): Json<LoginRequest>,
+    Protobuf(user): Protobuf<LoginRequest>,
 ) -> Result<Response, AppError> {
     if user.name.is_empty() || user.password.is_empty() {
         return Err(AppError::BadRequest("name or passwd is empty".to_string()));

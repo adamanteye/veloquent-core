@@ -33,7 +33,7 @@ pub fn good_email(email: &str) -> bool {
 }
 
 pub fn good_phone(phone: &str) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]{13}").unwrap());
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]{11}").unwrap());
     RE.is_match(phone)
 }
 
@@ -72,22 +72,6 @@ pub fn gen_hash_and_salt(passwd: &str) -> Result<(String, String), anyhow::Error
         .map_err(|e| anyhow::format_err!(e))?
         .to_string();
     Ok((hash, salt))
-}
-
-pub fn empty_string_as_err<'de, D>(de: D) -> Result<String, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::de::IntoDeserializer;
-    use serde::Deserialize;
-    let opt = <String>::deserialize(de)?.trim().to_owned();
-    match opt.as_str() {
-        "" => Err(serde::de::Error::invalid_value(
-            serde::de::Unexpected::Str(&opt),
-            &"empty string",
-        )),
-        s => String::deserialize(s.into_deserializer()),
-    }
 }
 
 use once_cell::sync::OnceCell;

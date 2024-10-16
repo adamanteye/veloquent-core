@@ -33,8 +33,8 @@ impl From<user::Model> for UserProfile {
             name: user.name,
             gender: user.gender,
             alias: user.alias.unwrap_or_default(),
-            email: user.email.unwrap_or_default(),
-            phone: user.phone.unwrap_or_default(),
+            email: user.email,
+            phone: user.phone,
             created_at: user.created_at.to_string(),
             avatar: user.avatar.unwrap_or_default().to_string(),
             bio: user.bio.unwrap_or_default(),
@@ -56,8 +56,8 @@ mod test {
             id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),
             name: "test".to_string(),
             alias: Option::None,
-            email: Option::None,
-            phone: Option::None,
+            email: "adamanteye@example.com".to_string(),
+            phone: "1234567890".to_string(),
             created_at,
             avatar: Option::None,
             bio: Option::None,
@@ -71,8 +71,8 @@ mod test {
             UserProfile {
                 id: "264107cf-8559-41b0-a8fe-074531695bf6".to_string(),
                 name: "test".to_string(),
-                email: String::default(),
-                phone: String::default(),
+                email: "adamanteye@example.com".to_string(),
+                phone: "1234567890".to_string(),
                 created_at: created_at.to_string(),
                 gender: 0,
                 avatar: uuid::Uuid::default().to_string(),
@@ -84,12 +84,19 @@ mod test {
     }
 }
 
+#[derive(IntoParams, Deserialize)]
+pub struct UserProfileParams {
+    /// 用户唯一主键
+    pub id: Option<Uuid>,
+}
+
 /// 获取用户信息
 ///
 /// 返回的格式为 protobuf 数据
 #[utoipa::path(
     get,
     path = "/user/profile",
+    params(UserProfileParams),
     responses(
         (status = 200, description = "获取成功, 返回 protobuf 数据", body = UserProfile),
         (status = 400, description = "提取 Authorization Bearer 失败", body = AppErrorResponse, example = json!({"msg":"token not found: [invalid HTTP header (authorization)]","ver": "0.1.1"})),
@@ -100,8 +107,11 @@ mod test {
 pub async fn get_self_profile_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
+    Query(params): Query<UserProfileParams>,
 ) -> Result<Protobuf<UserProfile>, AppError> {
-    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user: Option<user::Model> = User::find_by_id(params.id.unwrap_or(payload.id))
+        .one(&state.conn)
+        .await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
         payload.id

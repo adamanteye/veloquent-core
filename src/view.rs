@@ -15,6 +15,7 @@ pub use axum::{
 pub use axum_extra::protobuf::Protobuf;
 pub use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DeleteResult, EntityTrait, QueryFilter,
+    QueryTrait,
 };
 pub use serde::{Deserialize, Serialize};
 pub use tracing::{event, instrument, Level};
@@ -28,6 +29,7 @@ mod avatar;
 mod login;
 mod openapi;
 mod user_delete;
+mod user_find;
 mod user_profile;
 mod user_register;
 
@@ -49,6 +51,10 @@ pub fn router(state: AppState) -> Router {
         .merge(SwaggerUi::new(DOC_PATH).url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
         .route("/login", post(login::login_handler))
         .route("/register", post(user_register::register_handler))
+        .route(
+            "/user",
+            get(user_find::find_user_handler).route_layer(auth.clone()),
+        )
         .route(
             "/user/profile",
             get(user_profile::get_self_profile_handler)

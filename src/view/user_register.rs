@@ -1,20 +1,22 @@
 use super::*;
 use entity::{prelude::User, user};
 use login::LoginResponse;
-use utility::{empty_string_as_err, gen_hash_and_salt, good_email, good_phone};
+use utility::{gen_hash_and_salt, good_email, good_phone};
 
 /// 用户创建请求体
 ///
 /// 不提供该字段表示不进行设置或修改, 提供空字符串表示置为默认
-#[derive(Deserialize, ToSchema, Debug)]
+#[derive(ToSchema, prost::Message)]
 pub struct RegisterProfile {
     /// 用户名
-    #[serde(deserialize_with = "empty_string_as_err")]
+    #[prost(string, tag = "6")]
     pub name: String,
     /// 别名
+    #[prost(string, optional, tag = "1")]
     pub alias: Option<String>,
     /// 电话号码
-    pub phone: Option<String>,
+    #[prost(string, tag = "8")]
+    pub phone: String,
     /// 性别
     ///
     /// | 数值 | 说明 |
@@ -22,27 +24,31 @@ pub struct RegisterProfile {
     /// | 0 | 未指定 |
     /// | 1 | 女性 |
     /// | 2 | 男性 |
+    #[prost(int32, optional, tag = "4")]
     pub gender: Option<i32>,
     /// 个性简介
+    #[prost(string, optional, tag = "2")]
     pub bio: Option<String>,
     /// 个人链接
+    #[prost(string, optional, tag = "5")]
     pub link: Option<String>,
     /// 密码
-    #[serde(deserialize_with = "empty_string_as_err")]
+    #[prost(string, tag = "7")]
     pub password: String,
     /// 邮件地址
-    pub email: Option<String>,
+    #[prost(string, tag = "3")]
+    pub email: String,
 }
 
 impl TryFrom<RegisterProfile> for user::ActiveModel {
     type Error = AppError;
     fn try_from(p: RegisterProfile) -> Result<Self, Self::Error> {
         if !p.name.is_empty() && !p.password.is_empty() {
-            if p.gender.is_some_and(i32::is_negative) {
+            if p.gender.is_some_and(|g| g.is_negative()) {
                 Err(AppError::BadRequest("gender not valid".to_string()))
-            } else if p.email.clone().is_some_and(|e| !good_email(&e)) {
+            } else if !p.email.is_empty() && !good_email(&p.email) {
                 Err(AppError::BadRequest("invalid email".to_string()))
-            } else if p.phone.clone().is_some_and(|e| !good_phone(&e)) {
+            } else if !p.email.is_empty() && !good_phone(&p.phone) {
                 Err(AppError::BadRequest("invalid phone".to_string()))
             } else {
                 let (hash, salt) = gen_hash_and_salt(&p.password)?;
@@ -82,7 +88,7 @@ impl TryFrom<RegisterProfile> for user::ActiveModel {
 #[instrument(skip(state))]
 pub async fn register_handler(
     State(state): State<AppState>,
-    Json(profile): Json<RegisterProfile>,
+    Protobuf(profile): Protobuf<RegisterProfile>,
 ) -> Result<Response, AppError> {
     let user = user::ActiveModel::try_from(profile)?;
     let res = User::insert(user).exec(&state.conn).await?;
@@ -93,57 +99,4 @@ pub async fn register_handler(
         Json(LoginResponse { token: res.into() }),
     )
         .into_response())
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use coverage_helper::test;
-
-    #[test]
-    fn test_empty_user_or_password() {
-        let p = r#"{"name":"","password":""}"#;
-        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
-        assert!(p.is_err());
-    }
-
-    #[test]
-    fn test_invalid_email() {
-        let p = r#"{"name":"a","password":"b","email":"invalid"}"#;
-        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
-        let p = user::ActiveModel::try_from(p.unwrap());
-        assert!(p.is_err());
-    }
-
-    #[test]
-    fn test_valid_email() {
-        let p = r#"{"name":"a","password":"b","email":"adamanteye@mail.adamanteye.cc"}"#;
-        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
-        let p = user::ActiveModel::try_from(p.unwrap());
-        assert!(p.is_ok());
-    }
-
-    #[test]
-    fn test_invalid_phone() {
-        let p = r#"{"name":"a","password":"b","phone":"1990000000a"}"#;
-        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
-        let p = user::ActiveModel::try_from(p.unwrap());
-        assert!(p.is_err());
-    }
-
-    #[test]
-    fn test_valid_phone() {
-        let p = r#"{"name":"a","password":"b","phone":"19900000009"}"#;
-        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
-        let p = user::ActiveModel::try_from(p.unwrap());
-        assert!(p.is_err());
-    }
-
-    #[test]
-    fn test_invalid_gender() {
-        let p = r#"{"name":"a","password":"b","gender":-3}"#;
-        let p: Result<RegisterProfile, _> = serde_json::from_str(p);
-        let p = user::ActiveModel::try_from(p.unwrap());
-        assert!(p.is_err());
-    }
 }

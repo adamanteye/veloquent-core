@@ -6,42 +6,44 @@ use entity::{
 use tokio::io::AsyncWriteExt;
 use utility::{bytes_as_uuid, UPLOAD_DIR, UUID_NIL};
 
-#[derive(Deserialize, IntoParams, Debug)]
-pub struct UploadSetting {
+#[derive(ToSchema, prost::Message)]
+pub struct UploadAvatar {
     /// 类型名
     ///
     /// 目前允许 `png` 或 `jpg`
-    #[param(example = "jpg")]
+    #[schema(example = "jpg")]
+    #[prost(string, tag = "1")]
     typ: String,
+    #[prost(bytes, tag = "2")]
+    data: Bytes,
 }
 
 /// 上传用户头像
 #[utoipa::path(
     post,
     path = "/upload/avatar",
-    params(UploadSetting),
+    request_body = UploadAvatar,
     responses(
         (status = 201, description = "上传成功")
     ),
     tag = "user"
 )]
-#[instrument(skip(state, data))]
+#[instrument(skip(state))]
 pub async fn upload_avatar_handler(
     State(state): State<AppState>,
-    params: Query<UploadSetting>,
     payload: JWTPayload,
-    data: Bytes,
+    Protobuf(avatar): Protobuf<UploadAvatar>,
 ) -> Result<Response, AppError> {
-    let params: UploadSetting = params.0;
-    if params.typ.is_empty() {
+    if avatar.typ.is_empty() {
         return Err(AppError::BadRequest("empty type".to_string()));
     }
-    if params.typ.ne("png") && params.typ.ne("jpg") {
+    if avatar.typ.ne("png") && avatar.typ.ne("jpg") {
         return Err(AppError::BadRequest(format!(
             "unsupported type: [{}]",
-            params.typ
+            avatar.typ
         )));
     }
+    let data = avatar.data;
     let uuid = bytes_as_uuid(&data);
     if uuid.eq(&UUID_NIL) {
         Err(AppError::BadRequest("empty content".to_string()))
@@ -62,7 +64,7 @@ pub async fn upload_avatar_handler(
                 event!(Level::INFO, "write file: [{}]", uuid);
                 let file = upload::ActiveModel {
                     uuid: ActiveValue::set(uuid),
-                    typ: ActiveValue::set(params.typ),
+                    typ: ActiveValue::set(avatar.typ),
                 };
                 Upload::insert(file).exec(&state.conn).await?;
             }
@@ -75,7 +77,7 @@ pub async fn upload_avatar_handler(
                         event!(Level::ERROR, "cannot from database find file: [{}]", uuid);
                         let file = upload::ActiveModel {
                             uuid: ActiveValue::set(uuid),
-                            typ: ActiveValue::set(params.typ),
+                            typ: ActiveValue::set(avatar.typ),
                         };
                         Upload::insert(file).exec(&state.conn).await?;
                     }

@@ -9,7 +9,7 @@ pub struct UserList {
 }
 
 /// 各条件之间用与连接
-#[derive(IntoParams, Deserialize)]
+#[derive(IntoParams, Deserialize, Debug)]
 pub struct UserFindParams {
     pub name: Option<String>,
     pub alias: Option<String>,
@@ -44,11 +44,13 @@ impl UserList {
     ),
     tag = "user"
 )]
+#[instrument(skip(state, _payload))]
 pub async fn find_user_handler(
     State(state): State<AppState>,
     _payload: JWTPayload,
     Query(params): Query<UserFindParams>,
 ) -> Result<Protobuf<UserList>, AppError> {
     let users = UserList::find(params, &state.conn).await?;
+    event!(Level::DEBUG, "conditional find users: [{:?}]", users);
     Ok(Protobuf(users))
 }

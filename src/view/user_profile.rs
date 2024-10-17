@@ -114,7 +114,7 @@ mod test {
     }
 }
 
-#[derive(IntoParams, Deserialize)]
+#[derive(IntoParams, Deserialize, Debug)]
 pub struct UserProfileParams {
     /// 用户唯一主键
     pub id: Option<Uuid>,
@@ -134,7 +134,8 @@ pub struct UserProfileParams {
     ),
     tag = "user"
 )]
-pub async fn get_self_profile_handler(
+#[instrument(skip(state))]
+pub async fn get_profile_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
     Query(params): Query<UserProfileParams>,
@@ -146,5 +147,6 @@ pub async fn get_self_profile_handler(
         "cannot find user [{}]",
         payload.id
     )))?;
+    event!(Level::DEBUG, "get user profile: [{:?}]", user);
     Ok(Protobuf(UserProfile::from(user)))
 }

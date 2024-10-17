@@ -58,7 +58,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/user/profile",
-            get(user_profile::get_self_profile_handler)
+            get(user_profile::get_profile_handler)
                 .delete(user_delete::delete_user_handler)
                 .route_layer(auth.clone()),
         )

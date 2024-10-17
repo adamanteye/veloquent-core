@@ -25,7 +25,7 @@ pub struct Resource {
     get,
     path = "/download/{id}",
     params(
-        ("id" = Uuid, Path, description = "资源主键")
+        ("id" = String, Path, description = "资源主键")
     ),
     responses(
         (status = 200, description = "获取成功", body = Resource),
@@ -33,6 +33,7 @@ pub struct Resource {
     ),
     tag = "static"
 )]
+#[instrument(skip(state, _payload))]
 pub async fn download_handler(
     State(state): State<AppState>,
     _payload: JWTPayload,
@@ -46,8 +47,9 @@ pub async fn download_handler(
     let path = std::path::Path::new(UPLOAD_DIR.get().unwrap()).join(file.uuid.to_string());
     let typ = file.typ;
     let mut data = Vec::new();
-    let mut file = tokio::fs::File::open(path).await?;
+    let mut file = tokio::fs::File::open(&path).await?;
     file.read_to_end(&mut data).await?;
+    event!(Level::DEBUG, "download file: [{:?}]", path);
     Ok(Protobuf(Resource {
         typ,
         data: Bytes::from(data),

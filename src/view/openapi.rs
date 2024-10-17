@@ -12,6 +12,7 @@ use utoipa::OpenApi;
         user_delete::delete_user_handler,
         user_find::find_user_handler,
         avatar::upload_avatar_handler,
+        download::download_handler,
     ),
     components(
         schemas(
@@ -20,10 +21,12 @@ use utoipa::OpenApi;
             user_profile::UserProfile,
             login::LoginRequest, login::LoginResponse,
             user_find::UserList,
+            download::Resource,
         )
     ),
     tags(
-        (name = "user", description = "用户管理")
+        (name = "user", description = "用户管理"),
+        (name = "static", description = "静态资源")
     )
 )]
 pub(super) struct ApiDoc;

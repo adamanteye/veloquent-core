@@ -15,6 +15,7 @@ pub struct Resource {
     ///
     /// `tag` = `2`
     #[prost(bytes, tag = "2")]
+    #[schema(value_type = String, format = Binary)]
     pub data: Bytes,
 }
 
@@ -25,7 +26,7 @@ pub struct Resource {
     get,
     path = "/download/{id}",
     params(
-        ("id" = String, Path, description = "资源主键")
+        ("id" = Uuid, Path, description = "资源主键")
     ),
     responses(
         (status = 200, description = "获取成功", body = Resource),

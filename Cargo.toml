@@ -72,7 +72,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 toml = { workspace = true }
-utoipa = { workspace = true, features = ["axum_extras", "chrono"] }
+utoipa = { workspace = true, features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 migration = { path = "migration" }
 tracing = { workspace = true }

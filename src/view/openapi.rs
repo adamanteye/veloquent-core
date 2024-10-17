@@ -22,7 +22,6 @@ use utoipa::OpenApi;
             login::LoginRequest, login::LoginResponse,
             user_find::UserList,
             download::Resource,
-            avatar::UploadAvatar,
         )
     ),
     tags(

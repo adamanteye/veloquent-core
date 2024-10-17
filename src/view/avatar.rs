@@ -6,28 +6,11 @@ use entity::{
 use tokio::io::AsyncWriteExt;
 use utility::{bytes_as_uuid, UPLOAD_DIR, UUID_NIL};
 
-#[derive(ToSchema, prost::Message)]
-pub struct UploadAvatar {
-    /// 类型名
-    ///
-    /// 目前允许 `png` 或 `jpg`
-    ///
-    /// `tag` = `1`
-    #[schema(example = "jpg")]
-    #[prost(string, tag = "1")]
-    typ: String,
-    /// 数据
-    ///
-    /// `tag` = `2`
-    #[prost(bytes, tag = "2")]
-    data: Bytes,
-}
-
 /// 上传用户头像
 #[utoipa::path(
     post,
     path = "/upload/avatar",
-    request_body = UploadAvatar,
+    request_body = Resource,
     responses(
         (status = 201, description = "上传成功")
     ),
@@ -37,7 +20,7 @@ pub struct UploadAvatar {
 pub async fn upload_avatar_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
-    Protobuf(avatar): Protobuf<UploadAvatar>,
+    Protobuf(avatar): Protobuf<super::download::Resource>,
 ) -> Result<Response, AppError> {
     if avatar.typ.is_empty() {
         return Err(AppError::BadRequest("empty type".to_string()));

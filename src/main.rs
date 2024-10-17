@@ -29,14 +29,16 @@ use view::AppState;
 #[instrument(name = "veloquent_main")]
 #[tokio::main]
 async fn main() -> Result<()> {
-    let subscriber = tracing_subscriber::fmt()
+    // see https://stackoverflow.com/questions/73247589/how-to-turn-off-tracing-events-emitted-by-other-crates
+    let filter = tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(tracing_subscriber::filter::LevelFilter::WARN.into())
+        .from_env()?
+        .add_directive("veloquent_core=debug".parse()?);
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
         .compact()
-        .with_file(true)
-        .with_line_number(false)
-        .with_thread_ids(false)
-        .with_target(true)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber)?;
+        .init();
+
     let args = Args::parse();
     let config_path = std::path::Path::new(args.config.as_str());
     event!(Level::WARN, "reading configuration from {:?}", config_path);

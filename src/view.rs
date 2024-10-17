@@ -26,6 +26,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 mod avatar;
+mod download;
 mod login;
 mod openapi;
 mod user_delete;
@@ -63,7 +64,11 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/upload/avatar",
-            post(avatar::upload_avatar_handler).route_layer(auth),
+            post(avatar::upload_avatar_handler).route_layer(auth.clone()),
+        )
+        .route(
+            "/download",
+            get(download::download_handler).route_layer(auth),
         )
         .with_state(state)
 }

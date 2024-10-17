@@ -76,6 +76,8 @@ impl TryFrom<RegisterProfile> for user::ActiveModel {
 }
 
 /// 注册新用户
+///
+/// 返回 protobuf 格式的 JWT
 #[utoipa::path(
     post,
     path = "/register",
@@ -96,7 +98,7 @@ pub async fn register_handler(
     let res: JWTPayload = res.last_insert_id.into();
     Ok((
         StatusCode::CREATED,
-        Json(LoginResponse { token: res.into() }),
+        Protobuf(LoginResponse { token: res.into() }),
     )
         .into_response())
 }

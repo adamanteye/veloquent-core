@@ -36,16 +36,19 @@ impl LoginRequest {
 }
 
 /// 登录响应体
-#[derive(ToSchema, Serialize)]
+#[derive(ToSchema, prost::Message)]
 pub struct LoginResponse {
-    /// JWT
+    /// JWT token (tag: 1)
     #[schema(
         example = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjQ1OWE0MjBhLTQxNDMtNGFkYy1hZjgxLWQ1NGRmMjg4YmJlZCIsImV4cCI6MTcyOTE1MzUyNn0.lAM0QjzaJvaB8KgTcnRfUrEDOBwiBLIJ2u6yOivzsSk"
     )]
+    #[prost(string, tag = "1")]
     pub token: String,
 }
 
 /// 登录
+///
+/// 返回 protobuf 格式的 JWT
 #[utoipa::path(
     post,
     path = "/login",
@@ -68,7 +71,7 @@ pub async fn login_handler(
     event!(Level::INFO, "user login [{}]", user.name);
     Ok((
         StatusCode::OK,
-        Json(LoginResponse {
+        Protobuf(LoginResponse {
             token: payload.into(),
         }),
     )

@@ -4,24 +4,54 @@ use entity::{prelude::User, user};
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, prost::Message, ToSchema)]
 pub struct UserProfile {
+    /// 主键
+    ///
+    /// `tag` = `1`
     #[prost(string, tag = "1")]
     pub id: String,
+    /// 用户名
+    ///
+    /// `tag` = `2`
     #[prost(string, tag = "2")]
     pub name: String,
+    /// 别名
+    ///
+    /// `tag` = `3`
     #[prost(string, tag = "3")]
     pub alias: String,
+    /// 邮箱
+    ///
+    /// `tag` = `4`
     #[prost(string, tag = "4")]
     pub email: String,
+    /// 电话
+    ///
+    /// `tag` = `5`
     #[prost(string, tag = "5")]
     pub phone: String,
+    /// 个人链接
+    ///
+    /// `tag` = `6`
     #[prost(string, tag = "6")]
     pub link: String,
+    /// 性别
+    ///
+    /// `tag` = `7`
     #[prost(int32, tag = "7")]
     pub gender: i32,
+    /// 个性简介
+    ///
+    /// `tag` = `8`
     #[prost(string, tag = "8")]
     pub bio: String,
+    /// 头像
+    ///
+    /// `tag` = `9`
     #[prost(string, tag = "9")]
     pub avatar: String,
+    /// 创建时间
+    ///
+    /// `tag` = `10`
     #[prost(string, tag = "10")]
     pub created_at: String,
 }

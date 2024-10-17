@@ -11,9 +11,14 @@ pub struct UploadAvatar {
     /// 类型名
     ///
     /// 目前允许 `png` 或 `jpg`
+    ///
+    /// `tag` = `1`
     #[schema(example = "jpg")]
     #[prost(string, tag = "1")]
     typ: String,
+    /// 数据
+    ///
+    /// `tag` = `2`
     #[prost(bytes, tag = "2")]
     data: Bytes,
 }
@@ -26,7 +31,7 @@ pub struct UploadAvatar {
     responses(
         (status = 201, description = "上传成功")
     ),
-    tag = "user"
+    tag = "static"
 )]
 #[instrument(skip(state))]
 pub async fn upload_avatar_handler(

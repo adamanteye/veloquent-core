@@ -1,7 +1,7 @@
 FROM rust:1.81-slim-bookworm as builder
 WORKDIR /usr/src/veloquent-core
 COPY Cargo.toml Cargo.lock bfsu.toml ./
-RUN mkdir -p src .cargo && echo 'fn main() {}' > src/main.rs \
+RUN --mount=type=cache,target=/root/.cargo mkdir -p src .cargo && echo 'fn main() {}' > src/main.rs \
     && mv bfsu.toml .cargo/config.toml \
     && sed -i '/^members = \[.*\]$/d' Cargo.toml \
     && sed -i '/^migration = {.*path =.*}$/d' Cargo.toml \

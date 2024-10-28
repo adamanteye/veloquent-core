@@ -40,6 +40,7 @@ pub async fn download_handler(
     _payload: JWTPayload,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
+    event!(Level::DEBUG, "request resource [{:?}]", &id);
     let file = Upload::find_by_id(id).one(&state.conn).await?;
     let file = file.ok_or(AppError::NotFound(format!("cannot find file: [{}]", id)))?;
     if file.uuid == *UUID_NIL {
@@ -50,7 +51,7 @@ pub async fn download_handler(
     let mut data = Vec::new();
     let mut file = tokio::fs::File::open(&path).await?;
     file.read_to_end(&mut data).await?;
-    event!(Level::DEBUG, "download file: [{:?}]", path);
+    event!(Level::INFO, "download file: [{:?}]", path);
     Ok(Protobuf(Resource {
         typ,
         data: Bytes::from(data),

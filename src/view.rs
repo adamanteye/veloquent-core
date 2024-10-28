@@ -67,7 +67,7 @@ pub fn router(state: AppState) -> Router {
             post(avatar::upload_avatar_handler).route_layer(auth.clone()),
         )
         .route(
-            "/download",
+            "/download/:id",
             get(download::download_handler).route_layer(auth),
         )
         .with_state(state)

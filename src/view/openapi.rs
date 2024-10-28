@@ -20,7 +20,7 @@ use utoipa::OpenApi;
             user_register::RegisterProfile,
             user_profile::UserProfile,
             login::LoginRequest, login::LoginResponse,
-            user_find::UserList,
+            user_find::UserList, user_find::UserFindRequest,
             download::Resource,
         )
     ),

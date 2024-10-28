@@ -8,25 +8,49 @@ pub struct UserList {
     pub users: Vec<String>,
 }
 
-/// 各条件之间用与连接
-#[derive(IntoParams, Deserialize, Debug)]
-pub struct UserFindParams {
+/// 各条件之间用或连接
+///
+/// 没有提供字段的条件不参与查询
+#[derive(ToSchema, Deserialize, prost::Message)]
+pub struct UserFindRequest {
+    /// 用户名
+    ///
+    /// `tag` = `1`
+    #[prost(string, optional, tag = "1")]
     pub name: Option<String>,
+    /// 别名
+    ///
+    /// `tag` = `2`
+    #[prost(string, optional, tag = "2")]
     pub alias: Option<String>,
+    /// 邮箱
+    ///
+    /// `tag` = `3`
+    #[prost(string, optional, tag = "3")]
     pub email: Option<String>,
+    /// 电话
+    ///
+    /// `tag` = `4`
+    #[prost(string, optional, tag = "4")]
     pub phone: Option<String>,
 }
 
 impl UserList {
-    pub async fn find(params: UserFindParams, conn: &DatabaseConnection) -> Result<Self, AppError> {
-        // let users = Query::select().column()
+    pub async fn find(
+        params: UserFindRequest,
+        conn: &DatabaseConnection,
+    ) -> Result<Self, AppError> {
         let users = User::find()
-            .apply_if(params.name, |q, v| q.filter(user::Column::Name.like(v)))
-            .apply_if(params.alias, |q, v| q.filter(user::Column::Alias.like(v)))
-            .apply_if(params.email, |q, v| q.filter(user::Column::Email.like(v)))
-            .apply_if(params.phone, |q, v| q.filter(user::Column::Phone.like(v)))
+            .filter(
+                Condition::any()
+                    .add(user::Column::Name.like(params.name.unwrap_or_default().to_string()))
+                    .add(user::Column::Alias.like(params.alias.unwrap_or_default().to_string()))
+                    .add(user::Column::Email.like(params.email.unwrap_or_default().to_string()))
+                    .add(user::Column::Phone.like(params.phone.unwrap_or_default().to_string())),
+            )
             .all(conn)
             .await?;
+
         Ok(Self {
             users: users.into_iter().map(|u| u.id.to_string()).collect(),
         })
@@ -38,7 +62,7 @@ impl UserList {
 #[utoipa::path(
     get,
     path = "/user",
-    params(UserFindParams),
+    request_body = UserFindRequest,
     responses(
         (status = 200, description = "获取成功, 返回 protobuf 数据", body = UserList),
     ),
@@ -48,7 +72,7 @@ impl UserList {
 pub async fn find_user_handler(
     State(state): State<AppState>,
     _payload: JWTPayload,
-    Query(params): Query<UserFindParams>,
+    Protobuf(params): Protobuf<UserFindRequest>,
 ) -> Result<Protobuf<UserList>, AppError> {
     let users = UserList::find(params, &state.conn).await?;
     event!(Level::DEBUG, "conditional find users: [{:?}]", users);

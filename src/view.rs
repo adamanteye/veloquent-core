@@ -17,6 +17,7 @@ pub use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DeleteResult, EntityTrait, QueryFilter,
     QueryTrait,
 };
+pub use sea_query::Condition;
 pub use serde::{Deserialize, Serialize};
 pub use tracing::{event, instrument, Level};
 pub use utoipa::{IntoParams, ToSchema};

@@ -16,7 +16,7 @@ use utility::{bytes_as_uuid, UPLOAD_DIR, UUID_NIL};
     ),
     tag = "static"
 )]
-#[instrument(skip(state))]
+#[instrument(skip(state, avatar))]
 pub async fn upload_avatar_handler(
     State(state): State<AppState>,
     payload: JWTPayload,

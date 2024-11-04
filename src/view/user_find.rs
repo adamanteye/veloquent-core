@@ -8,7 +8,7 @@ pub struct UserList {
     pub users: Vec<String>,
 }
 
-/// 各条件之间用或连接
+/// 各条件之间用与连接
 ///
 /// 没有提供字段的条件不参与查询
 #[derive(IntoParams, Deserialize, Debug)]
@@ -30,11 +30,17 @@ impl UserList {
     ) -> Result<Self, AppError> {
         let users = User::find()
             .filter(
-                Condition::any()
-                    .add(user::Column::Name.like(params.name.unwrap_or_default().to_string()))
-                    .add(user::Column::Alias.like(params.alias.unwrap_or_default().to_string()))
-                    .add(user::Column::Email.like(params.email.unwrap_or_default().to_string()))
-                    .add(user::Column::Phone.like(params.phone.unwrap_or_default().to_string())),
+                Condition::all()
+                    .add(user::Column::Name.like(format!("%{}%", params.name.unwrap_or_default())))
+                    .add(
+                        user::Column::Alias.like(format!("%{}%", params.alias.unwrap_or_default())),
+                    )
+                    .add(
+                        user::Column::Email.like(format!("%{}%", params.email.unwrap_or_default())),
+                    )
+                    .add(
+                        user::Column::Phone.like(format!("%{}%", params.phone.unwrap_or_default())),
+                    ),
             )
             .all(conn)
             .await?;

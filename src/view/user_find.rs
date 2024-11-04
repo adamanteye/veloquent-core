@@ -11,27 +11,15 @@ pub struct UserList {
 /// 各条件之间用或连接
 ///
 /// 没有提供字段的条件不参与查询
-#[derive(ToSchema, Deserialize, prost::Message)]
+#[derive(IntoParams, Deserialize, Debug)]
 pub struct UserFindRequest {
     /// 用户名
-    ///
-    /// `tag` = `1`
-    #[prost(string, optional, tag = "1")]
     pub name: Option<String>,
     /// 别名
-    ///
-    /// `tag` = `2`
-    #[prost(string, optional, tag = "2")]
     pub alias: Option<String>,
     /// 邮箱
-    ///
-    /// `tag` = `3`
-    #[prost(string, optional, tag = "3")]
     pub email: Option<String>,
     /// 电话
-    ///
-    /// `tag` = `4`
-    #[prost(string, optional, tag = "4")]
     pub phone: Option<String>,
 }
 
@@ -62,7 +50,7 @@ impl UserList {
 #[utoipa::path(
     get,
     path = "/user",
-    request_body = UserFindRequest,
+    params(UserFindRequest),
     responses(
         (status = 200, description = "获取成功, 返回 protobuf 数据", body = UserList),
     ),
@@ -72,7 +60,7 @@ impl UserList {
 pub async fn find_user_handler(
     State(state): State<AppState>,
     _payload: JWTPayload,
-    Protobuf(params): Protobuf<UserFindRequest>,
+    Query(params): Query<UserFindRequest>,
 ) -> Result<Protobuf<UserList>, AppError> {
     let users = UserList::find(params, &state.conn).await?;
     event!(Level::DEBUG, "conditional find users: [{:?}]", users);

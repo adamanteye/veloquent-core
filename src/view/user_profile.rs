@@ -1,5 +1,6 @@
 use super::*;
 use entity::{prelude::User, user};
+use utility::{good_email, good_phone};
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, prost::Message, ToSchema)]
@@ -149,4 +150,116 @@ pub async fn get_profile_handler(
     )))?;
     event!(Level::DEBUG, "get user profile: [{:?}]", user);
     Ok(Protobuf(UserProfile::from(user)))
+}
+
+#[derive(Clone, prost::Message, ToSchema)]
+pub struct UserProfileEdition {
+    /// 用户名
+    ///
+    /// `tag` = `1`, optional
+    #[prost(string, optional, tag = "1")]
+    pub name: Option<String>,
+    /// 别名
+    ///
+    /// `tag` = `2`, optional
+    #[prost(string, optional, tag = "2")]
+    pub alias: Option<String>,
+    /// 邮箱
+    ///
+    /// `tag` = `3`, optional
+    #[prost(string, optional, tag = "3")]
+    pub email: Option<String>,
+    /// 电话
+    ///
+    /// `tag` = `4`, optional
+    #[prost(string, optional, tag = "4")]
+    pub phone: Option<String>,
+    /// 个人链接
+    ///
+    /// `tag` = `5`, optional
+    #[prost(string, optional, tag = "5")]
+    pub link: Option<String>,
+    /// 性别
+    ///
+    /// `tag` = `6`, optional
+    #[prost(int32, optional, tag = "6")]
+    pub gender: Option<i32>,
+    /// 个性简介
+    ///
+    /// `tag` = `7`, optional
+    #[prost(string, optional, tag = "7")]
+    pub bio: Option<String>,
+}
+
+impl TryFrom<UserProfileEdition> for user::ActiveModel {
+    type Error = AppError;
+
+    fn try_from(value: UserProfileEdition) -> Result<Self, Self::Error> {
+        Ok(user::ActiveModel {
+            id: ActiveValue::not_set(),
+            name: match value.name {
+                Some(n) => ActiveValue::set(n),
+                None => ActiveValue::not_set(),
+            },
+            salt: ActiveValue::not_set(),
+            hash: ActiveValue::not_set(),
+            avatar: ActiveValue::not_set(),
+            created_at: ActiveValue::not_set(),
+            gender: match value.gender {
+                Some(g) => ActiveValue::set(g),
+                None => ActiveValue::not_set(),
+            },
+            bio: ActiveValue::set(value.bio),
+            alias: ActiveValue::set(value.alias),
+            email: match value.email {
+                Some(e) => {
+                    if !good_email(&e) {
+                        return Err(AppError::BadRequest("invalid email".to_string()));
+                    }
+                    ActiveValue::set(e)
+                }
+                None => ActiveValue::not_set(),
+            },
+            phone: match value.phone {
+                Some(p) => {
+                    if !good_phone(&p) {
+                        return Err(AppError::BadRequest("invalid phone".to_string()));
+                    }
+                    ActiveValue::set(p)
+                }
+                None => ActiveValue::not_set(),
+            },
+            link: ActiveValue::set(value.link),
+        })
+    }
+}
+
+/// 修改用户信息
+#[utoipa::path(
+    put,
+    path = "/user/profile",
+    request_body = UserProfileEdition,
+    responses(
+        (status = 200, description = "更新成功"),
+    ),
+    tag = "user"
+)]
+#[instrument(skip(state))]
+pub async fn update_profile_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Protobuf(edition): Protobuf<UserProfileEdition>,
+) -> Result<Response, AppError> {
+    User::find_by_id(payload.id)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!(
+            "cannot find user: [{}]",
+            payload.id
+        )))?;
+    let mut user = user::ActiveModel::try_from(edition)?;
+    user.id = ActiveValue::set(payload.id);
+    User::update(user).exec(&state.conn).await?;
+    event!(Level::INFO, "update user [{}]", payload.id);
+    Ok(StatusCode::OK.into_response())
 }

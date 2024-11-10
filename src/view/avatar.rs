@@ -73,7 +73,7 @@ pub async fn upload_avatar_handler(
             }
         };
         user.avatar = ActiveValue::set(Some(uuid));
-        let _ = User::update(user).exec(&state.conn).await?;
+        User::update(user).exec(&state.conn).await?;
         event!(Level::INFO, "update user:avatar [{}:{}]", payload.id, uuid);
         Ok(StatusCode::CREATED.into_response())
     }

@@ -9,7 +9,7 @@ pub use axum::{
     http::StatusCode,
     middleware,
     response::{IntoResponse, Response},
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 pub use axum_extra::protobuf::Protobuf;
@@ -61,6 +61,7 @@ pub fn router(state: AppState) -> Router {
             "/user/profile",
             get(user_profile::get_profile_handler)
                 .delete(user_delete::delete_user_handler)
+                .put(user_profile::update_profile_handler)
                 .route_layer(auth.clone()),
         )
         .route(

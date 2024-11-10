@@ -59,7 +59,7 @@ impl TryFrom<RegisterProfile> for user::ActiveModel {
                     phone: ActiveValue::Set(p.phone),
                     hash: ActiveValue::set(hash),
                     salt: ActiveValue::set(salt),
-                    created_at: ActiveValue::set(chrono::Utc::now().naive_utc()),
+                    created_at: ActiveValue::not_set(),
                     gender: ActiveValue::set(p.gender.unwrap_or_default()),
                     email: ActiveValue::Set(p.email),
                     bio: ActiveValue::Set(p.bio),

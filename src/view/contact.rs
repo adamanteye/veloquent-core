@@ -6,7 +6,7 @@ use entity::{
 };
 
 /// 发起添加好友
-#[utoipa::path(delete, path = "/contact",
+#[utoipa::path(post, path = "/contact",
     params(
         ("id" = Uuid, Path, description = "要添加的用户主键")
     ),

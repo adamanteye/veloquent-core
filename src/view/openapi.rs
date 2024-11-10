@@ -11,6 +11,7 @@ use utoipa::OpenApi;
         user_profile::get_profile_handler, user_profile::update_profile_handler,
         user_delete::delete_user_handler,
         user_find::find_user_handler,
+        contact::add_contact_handler,
         avatar::upload_avatar_handler,
         download::download_handler,
     ),

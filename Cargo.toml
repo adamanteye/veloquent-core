@@ -41,8 +41,6 @@ rand = "0.8.5"
 regex = "1.11.0"
 uuid = "1.10.0"
 prost = "0.12"
-# With llvm-cov
-coverage-helper = "0.2"
 sea-query = "0.31.1"
 
 [package]

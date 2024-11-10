@@ -13,7 +13,7 @@ impl MigrationName for Migration {
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        let _ = manager
+        manager
             .create_table(
                 Table::create()
                     .table(Upload::Table)
@@ -21,7 +21,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Upload::Typ).string().not_null())
                     .to_owned(),
             )
-            .await;
+            .await?;
         manager
             .create_foreign_key(
                 ForeignKey::create()
@@ -29,21 +29,21 @@ impl MigrationTrait for Migration {
                     .to(Upload::Table, Upload::Uuid)
                     .on_delete(ForeignKeyAction::SetNull)
                     .on_update(ForeignKeyAction::SetNull)
-                    .name("FK_USER_AVATAR_UPLOAD")
+                    .name("FK_USER_AVATAR_UPLOAD_UUID")
                     .to_owned(),
             )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        let _ = manager
+        manager
             .drop_foreign_key(
                 ForeignKey::drop()
-                    .name("FK_USER_AVATAR_UPLOAD")
+                    .name("FK_USER_AVATAR_UPLOAD_UUID")
                     .table(User::Table)
                     .to_owned(),
             )
-            .await;
+            .await?;
         manager
             .drop_table(Table::drop().table(Upload::Table).to_owned())
             .await

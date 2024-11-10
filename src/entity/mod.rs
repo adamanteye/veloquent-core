@@ -2,5 +2,7 @@
 
 pub mod prelude;
 
+pub mod contact;
+pub mod session;
 pub mod upload;
 pub mod user;

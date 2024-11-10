@@ -9,6 +9,7 @@
 ## 测试说明
 
 运行 llvm-cov 工具
+
 ```sh
 cargo llvm-cov --no-clean --ignore-filename-regex=src/entity/.\*
 ```
@@ -39,6 +40,12 @@ docker exec -it pg-dev psql -U yangzheh
 sea-orm-cli generate entity \
     -u postgres://yangzheh:123456@localhost:5432/veloquent \
     -o src/entity
+```
+
+如果想导出 SQL 文件, 可以执行
+
+```sh
+docker exec -it pg-dev pg_dump veloquent > velo.sql -U yangzheh
 ```
 
 ## API 文档

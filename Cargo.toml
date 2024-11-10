@@ -89,4 +89,3 @@ uuid = { workspace = true, features = ["v5", "fast-rng"] }
 sea-query = { workspace = true }
 
 [dev-dependencies]
-coverage-helper = { workspace = true }

@@ -62,12 +62,12 @@ impl IntoResponse for AppError {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
-    use coverage_helper::test;
 
     #[test]
-    fn test_std_error_to_response() {
+    fn convert_std_error_to_response() {
         let res: axum::response::Response =
             AppError::from(std::io::Error::new(std::io::ErrorKind::Other, "test")).into_response();
 

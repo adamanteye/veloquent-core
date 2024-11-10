@@ -58,12 +58,12 @@ pub struct Config {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
-    use coverage_helper::test;
 
     #[test]
-    fn test_config_file() {
+    fn parse_config_file() {
         let config_file = r#"
 [database]
 username = "yangzheh"

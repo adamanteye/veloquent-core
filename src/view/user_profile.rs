@@ -75,13 +75,13 @@ impl From<user::Model> for UserProfile {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
-    use coverage_helper::test;
     use std::str::FromStr;
 
     #[test]
-    fn test_profile_from_entity() {
+    fn convert_profile_from_entity() {
         let created_at = chrono::Utc::now().naive_utc();
         let user = user::Model {
             id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),

@@ -98,12 +98,12 @@ pub fn bytes_as_uuid(bytes: &axum::body::Bytes) -> uuid::Uuid {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
-    use coverage_helper::test;
 
     #[test]
-    fn test_hash_and_salt() {
+    fn generate_hash_and_salt() {
         let (hash, salt) = gen_hash_and_salt("123456").unwrap();
         assert_eq!(hash.len(), 64);
         assert_eq!(salt.len(), 30);

@@ -1,6 +1,7 @@
 FROM rust:1.81-slim-bookworm as builder
 WORKDIR /usr/src/veloquent-core
 COPY Cargo.toml Cargo.lock bfsu.toml ./
+RUN apt-get update && apt-get install -y mold
 RUN --mount=type=cache,target=/root/.cargo mkdir -p src .cargo && echo 'fn main() {}' > src/main.rs \
     && mv bfsu.toml .cargo/config.toml \
     && sed -i '/^members = \[.*\]$/d' Cargo.toml \

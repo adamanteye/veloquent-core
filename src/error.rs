@@ -2,6 +2,7 @@
 
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::Serialize;
+#[cfg(feature = "dev")]
 use utoipa::ToSchema;
 
 /// 查看 [HTTP status code wiki](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
@@ -23,7 +24,8 @@ pub enum AppError {
 
 /// 错误响应
 #[doc(hidden)]
-#[derive(Serialize, ToSchema)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(Serialize)]
 pub struct AppErrorResponse {
     /// 错误信息
     msg: String,

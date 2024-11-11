@@ -1,7 +1,8 @@
 use super::*;
 use entity::{prelude::User, user};
 
-#[derive(prost::Message, ToSchema)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(prost::Message)]
 pub struct UserList {
     /// 用户主键列表
     #[prost(message, repeated, tag = "1")]
@@ -11,7 +12,8 @@ pub struct UserList {
 /// 各条件之间用与连接
 ///
 /// 没有提供字段的条件不参与查询
-#[derive(IntoParams, Deserialize, Debug)]
+#[cfg_attr(feature = "dev", derive(IntoParams))]
+#[derive(Deserialize, Debug)]
 pub struct UserFindRequest {
     /// 用户名
     pub name: Option<String>,
@@ -53,7 +55,8 @@ impl UserList {
 /// 查找用户
 ///
 /// 返回的格式为 protobuf 数据
-#[utoipa::path(
+#[cfg_attr(feature = "dev",
+utoipa::path(
     get,
     path = "/user",
     params(UserFindRequest),
@@ -61,7 +64,7 @@ impl UserList {
         (status = 200, description = "获取成功, 返回 protobuf 数据", body = UserList),
     ),
     tag = "user"
-)]
+))]
 #[instrument(skip(state, _payload))]
 pub async fn find_user_handler(
     State(state): State<AppState>,

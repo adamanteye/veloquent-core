@@ -52,10 +52,21 @@ license.workspace = true
 publish.workspace = true
 authors.workspace = true
 
+[features]
+default = ["dev"]
+dev = [
+    "utoipa/axum_extras",
+    "utoipa/chrono",
+    "utoipa/uuid",
+    "utoipa-swagger-ui/axum",
+]
+prod = []
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [dependencies]
+tokio = { workspace = true, features = ["signal", "rt-multi-thread"] }
 prost = { workspace = true }
 axum = { workspace = true }
 sea-orm = { workspace = true, features = [
@@ -64,14 +75,13 @@ sea-orm = { workspace = true, features = [
     "with-uuid",
     "macros",
 ] }
-tokio = { workspace = true, features = ["signal", "rt-multi-thread"] }
 axum-extra = { workspace = true, features = ["typed-header", "protobuf"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 toml = { workspace = true }
-utoipa = { workspace = true, features = ["axum_extras", "chrono", "uuid"] }
-utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+utoipa = { workspace = true, optional = true }
+utoipa-swagger-ui = { workspace = true, optional = true }
 migration = { path = "migration" }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -85,5 +95,3 @@ rand = { workspace = true }
 regex = { workspace = true }
 uuid = { workspace = true, features = ["v5", "fast-rng"] }
 sea-query = { workspace = true }
-
-[dev-dependencies]

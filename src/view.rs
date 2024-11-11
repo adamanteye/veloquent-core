@@ -20,16 +20,19 @@ pub use sea_orm::{
 pub use sea_query::Condition;
 pub use serde::{Deserialize, Serialize};
 pub use tracing::{event, instrument, Level};
-pub use utoipa::{IntoParams, ToSchema};
-pub use uuid::Uuid;
-
+#[cfg(feature = "dev")]
 use utoipa::OpenApi;
+#[cfg(feature = "dev")]
+use utoipa::{IntoParams, ToSchema};
+#[cfg(feature = "dev")]
 use utoipa_swagger_ui::SwaggerUi;
+pub use uuid::Uuid;
 
 mod avatar;
 mod contact;
 mod download;
 mod login;
+#[cfg(feature = "dev")]
 mod openapi;
 mod user_delete;
 mod user_find;
@@ -45,13 +48,25 @@ pub struct AppState {
 }
 
 /// Swagger Open API 文档路径
+#[cfg(feature = "dev")]
 pub(super) static DOC_PATH: &str = "/doc";
 
 /// Veloquent 路由
 pub fn router(state: AppState) -> Router {
     let auth = middleware::from_extractor::<JWTPayload>();
-    Router::new()
-        .merge(SwaggerUi::new(DOC_PATH).url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
+    let router = {
+        #[cfg(feature = "dev")]
+        {
+            Router::new().merge(
+                SwaggerUi::new(DOC_PATH).url("/api-docs/openapi.json", openapi::ApiDoc::openapi()),
+            )
+        }
+        #[cfg(not(feature = "dev"))]
+        {
+            Router::new()
+        }
+    };
+    router
         .route("/login", post(login::login_handler))
         .route("/register", post(user_register::register_handler))
         .route(

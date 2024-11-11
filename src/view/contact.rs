@@ -6,7 +6,8 @@ use entity::{
 };
 
 /// 发起添加好友
-#[utoipa::path(post, path = "/contact",
+#[cfg_attr(feature = "dev",
+utoipa::path(post, path = "/contact",
     params(
         ("id" = Uuid, Path, description = "要添加的用户主键")
     ),
@@ -14,7 +15,7 @@ use entity::{
         (status = 200, description = "发起成功")
     ),
     tag = "user"
-)]
+))]
 #[instrument(skip(state))]
 pub async fn add_contact_handler(
     State(state): State<AppState>,

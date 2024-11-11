@@ -6,7 +6,8 @@ use utility::{gen_hash_and_salt, good_email, good_phone};
 /// 用户创建请求体
 ///
 /// 不提供该字段表示不进行设置或修改, 提供空字符串表示置为默认
-#[derive(ToSchema, prost::Message)]
+#[derive(prost::Message)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct RegisterProfile {
     /// 用户名
     #[prost(string, tag = "6")]
@@ -78,7 +79,8 @@ impl TryFrom<RegisterProfile> for user::ActiveModel {
 /// 注册新用户
 ///
 /// 返回 protobuf 格式的 JWT
-#[utoipa::path(
+#[cfg_attr(feature = "dev",
+utoipa::path(
     post,
     path = "/register",
     request_body = RegisterProfile,
@@ -86,7 +88,7 @@ impl TryFrom<RegisterProfile> for user::ActiveModel {
         (status = 201, description = "注册成功", body = LoginResponse),
     ),
     tag = "user"
-)]
+))]
 #[instrument(skip(state))]
 pub async fn register_handler(
     State(state): State<AppState>,

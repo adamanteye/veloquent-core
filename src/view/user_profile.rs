@@ -3,7 +3,8 @@ use entity::{prelude::User, user};
 use utility::{good_email, good_phone};
 
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, prost::Message, ToSchema)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(Clone, PartialEq, prost::Message)]
 pub struct UserProfile {
     /// 主键
     ///
@@ -114,7 +115,8 @@ mod test {
     }
 }
 
-#[derive(IntoParams, Deserialize, Debug)]
+#[cfg_attr(feature = "dev", derive(IntoParams))]
+#[derive(Deserialize, Debug)]
 pub struct UserProfileParams {
     /// 用户唯一主键
     pub id: Option<Uuid>,
@@ -123,7 +125,8 @@ pub struct UserProfileParams {
 /// 获取用户信息
 ///
 /// 返回的格式为 protobuf 数据
-#[utoipa::path(
+#[cfg_attr(feature = "dev",
+utoipa::path(
     get,
     path = "/user/profile",
     params(UserProfileParams),
@@ -133,7 +136,7 @@ pub struct UserProfileParams {
         (status = 401, description = "验证用户失败", body = AppErrorResponse, example = json!({"msg":"invalid JWT: [InvalidSignature]","ver": "0.1.1"}))
     ),
     tag = "user"
-)]
+))]
 #[instrument(skip(state))]
 pub async fn get_profile_handler(
     State(state): State<AppState>,
@@ -151,7 +154,8 @@ pub async fn get_profile_handler(
     Ok(Protobuf(UserProfile::from(user)))
 }
 
-#[derive(Clone, prost::Message, ToSchema)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(Clone, prost::Message)]
 pub struct UserProfileEdition {
     /// 用户名
     ///
@@ -234,7 +238,8 @@ impl TryFrom<UserProfileEdition> for user::ActiveModel {
 }
 
 /// 修改用户信息
-#[utoipa::path(
+#[cfg_attr(feature = "dev",
+utoipa::path(
     put,
     path = "/user/profile",
     request_body = UserProfileEdition,
@@ -242,7 +247,7 @@ impl TryFrom<UserProfileEdition> for user::ActiveModel {
         (status = 200, description = "更新成功"),
     ),
     tag = "user"
-)]
+))]
 #[instrument(skip(state))]
 pub async fn update_profile_handler(
     State(state): State<AppState>,

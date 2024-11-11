@@ -7,7 +7,8 @@ use tokio::io::AsyncWriteExt;
 use utility::{bytes_as_uuid, UPLOAD_DIR, UUID_NIL};
 
 /// 上传用户头像
-#[utoipa::path(
+#[cfg_attr(feature = "dev",
+utoipa::path(
     post,
     path = "/upload/avatar",
     request_body = Resource,
@@ -15,7 +16,7 @@ use utility::{bytes_as_uuid, UPLOAD_DIR, UUID_NIL};
         (status = 201, description = "上传成功")
     ),
     tag = "static"
-)]
+))]
 #[instrument(skip(state, avatar))]
 pub async fn upload_avatar_handler(
     State(state): State<AppState>,

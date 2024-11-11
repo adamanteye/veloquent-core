@@ -101,6 +101,7 @@ async fn main() -> Result<()> {
         config.listen.address,
         config.listen.port
     );
+    #[cfg(feature = "dev")]
     event!(
         Level::INFO,
         "serve doc on http://{}:{}{}",

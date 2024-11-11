@@ -8,6 +8,7 @@ use axum_extra::{
 pub(super) use jsonwebtoken::{DecodingKey, EncodingKey};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "dev")]
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -24,7 +25,8 @@ pub(super) struct JwtSetting {
 }
 
 /// JWT 载荷
-#[derive(Serialize, Deserialize, ToSchema, Debug)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct JWTPayload {
     /// 用户唯一标识
     pub id: Uuid,

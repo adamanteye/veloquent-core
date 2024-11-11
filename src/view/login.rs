@@ -3,14 +3,15 @@ use entity::{prelude::User, user};
 use utility::validate_passwd;
 
 /// 登录请求体
-#[derive(ToSchema, prost::Message)]
+#[derive(prost::Message)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct LoginRequest {
     /// 用户名
-    #[schema(example = "yangzheh")]
+    #[cfg_attr(feature = "dev", schema(example = "yangzheh"))]
     #[prost(string, tag = "1")]
     name: String,
     /// 密码
-    #[schema(example = "123456")]
+    #[cfg_attr(feature = "dev", schema(example = "123456"))]
     #[prost(string, tag = "2")]
     password: String,
 }
@@ -36,11 +37,15 @@ impl LoginRequest {
 }
 
 /// 登录响应体
-#[derive(ToSchema, prost::Message)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(prost::Message)]
 pub struct LoginResponse {
     /// JWT token (tag: 1)
-    #[schema(
-        example = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjQ1OWE0MjBhLTQxNDMtNGFkYy1hZjgxLWQ1NGRmMjg4YmJlZCIsImV4cCI6MTcyOTE1MzUyNn0.lAM0QjzaJvaB8KgTcnRfUrEDOBwiBLIJ2u6yOivzsSk"
+    #[cfg_attr(
+        feature = "dev",
+        schema(
+            example = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjQ1OWE0MjBhLTQxNDMtNGFkYy1hZjgxLWQ1NGRmMjg4YmJlZCIsImV4cCI6MTcyOTE1MzUyNn0.lAM0QjzaJvaB8KgTcnRfUrEDOBwiBLIJ2u6yOivzsSk"
+        )
     )]
     #[prost(string, tag = "1")]
     pub token: String,
@@ -49,7 +54,8 @@ pub struct LoginResponse {
 /// 登录
 ///
 /// 返回 protobuf 格式的 JWT
-#[utoipa::path(
+#[cfg_attr(feature = "dev",
+utoipa::path(
     post,
     path = "/login",
     request_body = LoginRequest,
@@ -58,7 +64,7 @@ pub struct LoginResponse {
         (status = 401, description = "登录失败", body = AppErrorResponse, example = json!({"msg":"wrong password","ver": "0.1.1"})),
     ),
     tag = "user"
-)]
+))]
 #[instrument(skip(state))]
 pub async fn login_handler(
     State(state): State<AppState>,

@@ -32,6 +32,9 @@ pub async fn add_contact_handler(
         "cannot find user [{}]",
         contact
     )))?;
+    if user.id == con.id {
+        return Err(AppError::BadRequest("cannot add self".to_string()));
+    }
     let l = Contact::find()
         .filter(
             Condition::all()

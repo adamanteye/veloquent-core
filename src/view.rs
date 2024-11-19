@@ -5,7 +5,10 @@ pub use crate::{error::AppError, utility};
 
 pub use axum::{
     body::Bytes,
-    extract::{Path, Query, State},
+    extract::{
+        ws::{WebSocket, WebSocketUpgrade},
+        Path, Query, State,
+    },
     http::StatusCode,
     middleware,
     response::{IntoResponse, Response},

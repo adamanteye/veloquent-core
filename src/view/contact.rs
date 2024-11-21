@@ -19,7 +19,7 @@ pub async fn add_contact_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
     Path(contact): Path<Uuid>,
-) -> Result<Response, AppError> {
+) -> Result<impl IntoResponse, AppError> {
     let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
@@ -82,7 +82,7 @@ pub async fn add_contact_handler(
 
 /// 删除好友
 #[cfg_attr(feature = "dev",
-utoipa::path(post, path = "/contact/accept",
+utoipa::path(post, path = "/contact/delete",
     params(
         ("id" = Uuid, Path, description = "要删除的用户主键") ), responses(
         (status = 204, description = "删除成功")
@@ -315,7 +315,7 @@ pub async fn get_new_contacts_handler(
 #[cfg_attr(feature = "dev",
 utoipa::path(post, path = "/contact/list",
     responses(
-        (status = 200, description = "获取成功")
+        (status = 200, description = "获取成功", body = ContactList)
     ),
     tag = "contact"
 ))]
@@ -341,7 +341,7 @@ pub async fn get_contacts_handler(
 #[cfg_attr(feature = "dev",
 utoipa::path(post, path = "/contact/pending",
     responses(
-        (status = 200, description = "获取成功")
+        (status = 200, description = "获取成功", body = ContactList)
     ),
     tag = "contact"
 ))]

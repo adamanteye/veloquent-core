@@ -17,10 +17,11 @@ pub use axum::{
 };
 pub use axum_extra::protobuf::Protobuf;
 pub use sea_orm::{
-    ActiveValue, ColumnTrait, DatabaseConnection, DeleteResult, EntityTrait, QueryFilter,
-    QueryTrait,
+    ActiveValue, ColumnTrait, DatabaseBackend::Postgres, DatabaseConnection, DeleteResult,
+    EntityTrait, FromQueryResult, JoinType, QueryFilter, QuerySelect, QueryTrait, RelationTrait,
+    Statement,
 };
-pub use sea_query::Condition;
+pub use sea_query::{Alias, Condition};
 pub use serde::{Deserialize, Serialize};
 pub use tracing::{event, instrument, Level};
 #[cfg(feature = "dev")]
@@ -69,6 +70,7 @@ pub fn router(state: AppState) -> Router {
             Router::new()
         }
     };
+
     router
         .route("/login", post(login::login_handler))
         .route("/register", post(user_register::register_handler))
@@ -84,8 +86,24 @@ pub fn router(state: AppState) -> Router {
                 .route_layer(auth.clone()),
         )
         .route(
-            "/contact/:id",
+            "/contact/list",
+            get(contact::get_contacts_handler).route_layer(auth.clone()),
+        )
+        .route(
+            "/contact/pending",
+            get(contact::get_pending_contacts_handler).route_layer(auth.clone()),
+        )
+        .route(
+            "/contact/new/:id",
             post(contact::add_contact_handler).route_layer(auth.clone()),
+        )
+        .route(
+            "/contact/accept/:id",
+            post(contact::accept_contact_handler).route_layer(auth.clone()),
+        )
+        .route(
+            "/contact/delete/:id",
+            delete(contact::delete_contact_handler).route_layer(auth.clone()),
         )
         .route(
             "/upload/avatar",
@@ -93,7 +111,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/download/:id",
-            get(download::download_handler).route_layer(auth),
+            get(download::download_handler).route_layer(auth.clone()),
         )
         .with_state(state)
 }

@@ -68,7 +68,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 [dependencies]
 tokio = { workspace = true, features = ["signal", "rt-multi-thread"] }
 prost = { workspace = true }
-axum = { workspace = true, features = ["ws"] }
+axum = { workspace = true, features = ["ws", "http2"] }
 sea-orm = { workspace = true, features = [
     "sqlx-postgres",
     "runtime-tokio-rustls",

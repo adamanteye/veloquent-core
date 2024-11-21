@@ -11,7 +11,8 @@ use utoipa::OpenApi;
         user_profile::get_profile_handler, user_profile::update_profile_handler,
         user_delete::delete_user_handler,
         user_find::find_user_handler,
-        contact::add_contact_handler,
+        contact::add_contact_handler, contact::get_contacts_handler,
+        contact::get_pending_contacts_handler, contact::delete_contact_handler,
         avatar::upload_avatar_handler,
         download::download_handler,
     ),
@@ -23,10 +24,12 @@ use utoipa::OpenApi;
             login::LoginRequest, login::LoginResponse,
             user_find::UserList,
             download::Resource,
+            contact::ContactList, contact::Chat
         )
     ),
     tags(
         (name = "user", description = "用户管理"),
+        (name = "contact", description = "好友管理"),
         (name = "static", description = "静态资源")
     )
 )]

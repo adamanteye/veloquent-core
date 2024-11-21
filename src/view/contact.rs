@@ -76,6 +76,12 @@ pub async fn add_contact_handler(
         category: ActiveValue::not_set(),
     };
     Contact::insert(c).exec(&state.conn).await?;
+    let s = state.clone();
+    tokio::task::spawn(async move {
+        state
+            .ws_pool
+            .notify(con.id, notify_new_contacts(s, con.id).await)
+    });
     Ok(StatusCode::OK.into_response())
 }
 
@@ -289,23 +295,20 @@ impl ContactList {
 }
 
 /// 推送好友申请列表
-///
-/// 返回 Protobuf 格式数据
 #[instrument(skip(state))]
-#[cfg_attr(feature = "dev", utoipa::path(post, path = "/ws", tag = "contact"))]
-pub async fn get_new_contacts_handler(
-    State(state): State<AppState>,
-    Path(user_id): Path<Uuid>,
-) -> Result<impl IntoResponse, AppError> {
+pub async fn notify_new_contacts(
+    state: AppState,
+    user_id: Uuid,
+) -> Result<WebSocketMessage, AppError> {
     let user: Option<user::Model> = User::find_by_id(user_id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
         user_id
     )))?;
     event!(Level::INFO, "get new contact list of user [{}]", user_id);
-    Ok(Protobuf(
-        ContactList::query_new_contact(user, &state.conn).await?,
-    ))
+    let data = Protobuf(ContactList::query_new_contact(user, &state.conn).await?);
+    let buf = data.0.encode_to_vec();
+    Ok(WebSocketMessage::Binary(buf))
 }
 
 /// 获取好友列表

@@ -90,7 +90,10 @@ async fn main() -> Result<()> {
         .set(config.upload.dir)
         .map_err(|_| Err::<(), ()>(()))
         .unwrap();
-    let state = AppState { conn: db };
+    let state = AppState {
+        conn: db,
+        ws_pool: Default::default(),
+    };
     let app = view::router(state);
     let listener =
         tokio::net::TcpListener::bind(format!("{}:{}", config.listen.address, config.listen.port))

@@ -6,7 +6,7 @@ pub use crate::{error::AppError, utility};
 pub use axum::{
     body::Bytes,
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
+        ws::{Message as WebSocketMessage, WebSocket, WebSocketUpgrade},
         Path, Query, State,
     },
     http::StatusCode,
@@ -23,14 +23,21 @@ pub use sea_orm::{
 };
 pub use sea_query::{Alias, Condition};
 pub use serde::{Deserialize, Serialize};
+pub use std::{collections::HashMap, sync::Arc};
+pub use tokio::sync::Mutex;
 pub use tracing::{event, instrument, Level};
+pub use uuid::Uuid;
+
+use super::jwt::JWTPayload;
+
 #[cfg(feature = "dev")]
 use utoipa::OpenApi;
 #[cfg(feature = "dev")]
 use utoipa::{IntoParams, ToSchema};
 #[cfg(feature = "dev")]
 use utoipa_swagger_ui::SwaggerUi;
-pub use uuid::Uuid;
+
+use prost::Message;
 
 mod avatar;
 mod contact;
@@ -42,14 +49,43 @@ mod user_delete;
 mod user_find;
 mod user_profile;
 mod user_register;
-mod ws;
-
-use super::jwt::JWTPayload;
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub struct AppState {
     pub conn: DatabaseConnection,
+    pub ws_pool: WebSocketPool,
+}
+
+#[doc(hidden)]
+#[derive(Clone, Debug, Default)]
+pub struct WebSocketPool(Arc<Mutex<HashMap<Uuid, WebSocket>>>);
+
+impl WebSocketPool {
+    #[instrument(skip(self, ws))]
+    pub async fn register(self, user: Uuid, ws: WebSocket) {
+        event!(Level::INFO, "register websocket for user [{}]", user);
+        self.0.lock().await.insert(user, ws);
+    }
+
+    #[instrument(skip(self))]
+    pub async fn notify(self, user: Uuid, message: Result<WebSocketMessage, AppError>) {
+        if let Some(ws) = self.0.lock().await.get_mut(&user) {
+            if let Ok(message) = message {
+                event!(
+                    Level::INFO,
+                    "send message [{:?}] to user [{}]",
+                    message,
+                    user
+                );
+                ws.send(message).await.ok();
+            }
+        }
+    }
+
+    pub async fn remove(self, user: Uuid) {
+        self.0.lock().await.remove(&user);
+    }
 }
 
 /// Swagger Open API 文档路径
@@ -63,7 +99,7 @@ async fn ws_upgrade_handler(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     event!(Level::INFO, "receive websocket establishment request");
-    ws.on_upgrade(move |socket| ws::ws_handler(socket, payload.id, state))
+    ws.on_upgrade(move |socket| state.ws_pool.register(payload.id, socket))
 }
 
 /// Veloquent 路由

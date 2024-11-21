@@ -99,7 +99,7 @@ impl MigrationTrait for Migration {
             )
             .await?;
         manager
-            .drop_table(Table::drop().table(Session::Table).to_owned())
+            .drop_table(Table::drop().table(Message::Table).to_owned())
             .await
     }
 }

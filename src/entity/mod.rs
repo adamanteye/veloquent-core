@@ -3,6 +3,7 @@
 pub mod prelude;
 
 pub mod contact;
+pub mod feed;
 pub mod message;
 pub mod session;
 pub mod upload;

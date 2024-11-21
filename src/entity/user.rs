@@ -25,6 +25,8 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::feed::Entity")]
+    Feed,
     #[sea_orm(has_many = "super::message::Entity")]
     Message,
     #[sea_orm(
@@ -35,6 +37,12 @@ pub enum Relation {
         on_delete = "SetNull"
     )]
     Upload,
+}
+
+impl Related<super::feed::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Feed.def()
+    }
 }
 
 impl Related<super::message::Entity> for Entity {

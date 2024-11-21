@@ -81,7 +81,7 @@ pub async fn add_contact_handler(
 
 /// 删除好友
 #[cfg_attr(feature = "dev",
-utoipa::path(post, path = "/contact/delete",
+utoipa::path(delete, path = "/contact/delete",
     params(
         ("id" = Uuid, Path, description = "要删除的用户主键") ), responses(
         (status = 204, description = "删除成功")
@@ -312,7 +312,7 @@ pub async fn get_new_contacts_handler(
 ///
 /// 返回 Protobuf 格式数据
 #[cfg_attr(feature = "dev",
-utoipa::path(post, path = "/contact/list",
+utoipa::path(get, path = "/contact/list",
     responses(
         (status = 200, description = "获取成功", body = ContactList)
     ),
@@ -338,7 +338,7 @@ pub async fn get_contacts_handler(
 ///
 /// 返回 Protobuf 格式数据
 #[cfg_attr(feature = "dev",
-utoipa::path(post, path = "/contact/pending",
+utoipa::path(get, path = "/contact/pending",
     responses(
         (status = 200, description = "获取成功", body = ContactList)
     ),

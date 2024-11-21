@@ -13,6 +13,7 @@ use utoipa::OpenApi;
         user_find::find_user_handler,
         contact::add_contact_handler, contact::get_contacts_handler,
         contact::get_pending_contacts_handler, contact::delete_contact_handler,
+        contact::accept_contact_handler,
         avatar::upload_avatar_handler,
         download::download_handler,
     ),

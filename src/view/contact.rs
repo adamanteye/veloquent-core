@@ -225,7 +225,7 @@ pub struct Chat {
     ///
     /// `tag` = `1`
     #[prost(string, tag = "1")]
-    pub user: String,
+    pub id: String,
     /// 会话
     ///
     /// `tag` = `2`
@@ -246,7 +246,7 @@ impl ContactList {
         let user = contacts
             .iter()
             .map(|c| Chat {
-                user: c.user.to_string(),
+                id: c.user.to_string(),
                 session: c.chat.to_string(),
             })
             .collect();
@@ -264,7 +264,7 @@ impl ContactList {
         let user = contacts
             .iter()
             .map(|c| Chat {
-                user: c.user.to_string(),
+                id: c.user.to_string(),
                 session: c.chat.to_string(),
             })
             .collect();
@@ -281,7 +281,7 @@ impl ContactList {
         let user = contacts
             .iter()
             .map(|c| Chat {
-                user: c.user.to_string(),
+                id: c.user.to_string(),
                 session: c.chat.to_string(),
             })
             .collect();

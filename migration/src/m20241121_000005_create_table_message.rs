@@ -31,6 +31,7 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .extra("DEFAULT now()::TIMESTAMP"),
                     )
+                    .col(ColumnDef::new(Message::Session).uuid().not_null())
                     .col(ColumnDef::new(Message::EditedAt).timestamp())
                     .col(ColumnDef::new(Message::Content).string())
                     .col(ColumnDef::new(Message::Typ).integer())

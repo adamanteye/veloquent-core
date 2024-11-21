@@ -3,23 +3,33 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "contact")]
+#[sea_orm(table_name = "message")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    pub user: Uuid,
-    pub ref_user: Option<Uuid>,
-    pub category: Option<String>,
-    pub chat: Uuid,
-    pub alias: Option<String>,
     pub created_at: DateTime,
+    pub session: Uuid,
+    pub edited_at: Option<DateTime>,
+    pub content: Option<String>,
+    pub typ: Option<i32>,
+    pub file: Option<Uuid>,
+    pub sender: Option<Uuid>,
+    pub cite: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
+        belongs_to = "Entity",
+        from = "Column::Cite",
+        to = "Column::Id",
+        on_update = "NoAction",
+        on_delete = "SetNull"
+    )]
+    SelfRef,
+    #[sea_orm(
         belongs_to = "super::session::Entity",
-        from = "Column::Chat",
+        from = "Column::Session",
         to = "super::session::Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
@@ -27,25 +37,23 @@ pub enum Relation {
     Session,
     #[sea_orm(
         belongs_to = "super::user::Entity",
-        from = "Column::RefUser",
+        from = "Column::Sender",
         to = "super::user::Column::Id",
         on_update = "NoAction",
         on_delete = "SetNull"
     )]
-    User2,
-    #[sea_orm(
-        belongs_to = "super::user::Entity",
-        from = "Column::User",
-        to = "super::user::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
-    User1,
+    User,
 }
 
 impl Related<super::session::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Session.def()
+    }
+}
+
+impl Related<super::user::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::User.def()
     }
 }
 

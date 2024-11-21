@@ -2,7 +2,6 @@ use sea_orm_migration::prelude::*;
 
 use super::m20241012_000001_create_table_user::User;
 use super::m20241110_000004_create_table_session::Session;
-use super::m20241121_000005_create_table_message::Message;
 
 pub struct Migration;
 

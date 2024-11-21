@@ -6,7 +6,7 @@ pub use crate::{error::AppError, utility};
 pub use axum::{
     body::Bytes,
     extract::{
-        ws::{WebSocket, WebSocketUpgrade},
+        ws::{Message, WebSocket, WebSocketUpgrade},
         Path, Query, State,
     },
     http::StatusCode,
@@ -42,6 +42,7 @@ mod user_delete;
 mod user_find;
 mod user_profile;
 mod user_register;
+mod ws;
 
 use super::jwt::JWTPayload;
 
@@ -54,6 +55,16 @@ pub struct AppState {
 /// Swagger Open API 文档路径
 #[cfg(feature = "dev")]
 pub(super) static DOC_PATH: &str = "/doc";
+
+#[instrument(skip(state, ws))]
+async fn ws_upgrade_handler(
+    ws: WebSocketUpgrade,
+    payload: JWTPayload,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    event!(Level::INFO, "receive websocket establishment request");
+    ws.on_upgrade(move |socket| ws::ws_handler(socket, payload.id, state))
+}
 
 /// Veloquent 路由
 pub fn router(state: AppState) -> Router {
@@ -113,5 +124,6 @@ pub fn router(state: AppState) -> Router {
             "/download/:id",
             get(download::download_handler).route_layer(auth.clone()),
         )
+        .route("/ws", get(ws_upgrade_handler).route_layer(auth.clone()))
         .with_state(state)
 }

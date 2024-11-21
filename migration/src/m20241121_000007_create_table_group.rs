@@ -1,13 +1,14 @@
 use sea_orm_migration::prelude::*;
 
 use super::m20241012_000001_create_table_user::User;
+use super::m20241110_000004_create_table_session::Session;
 use super::m20241121_000005_create_table_message::Message;
 
 pub struct Migration;
 
 impl MigrationName for Migration {
     fn name(&self) -> &str {
-        "m20241121_000006_create_table_feed"
+        "m20241121_000007_create_table_group"
     }
 }
 
@@ -17,37 +18,43 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Feed::Table)
+                    .table(Group::Table)
                     .col(
-                        ColumnDef::new(Feed::Id)
-                            .integer()
+                        ColumnDef::new(Group::Id)
+                            .uuid()
                             .not_null()
-                            .auto_increment()
-                            .primary_key(),
+                            .primary_key()
+                            .extra("DEFAULT gen_random_uuid()"),
                     )
-                    .col(ColumnDef::new(Feed::ReadAt).timestamp())
-                    .col(ColumnDef::new(Feed::User).uuid().not_null())
-                    .col(ColumnDef::new(Feed::Message).uuid().not_null())
+                    .col(
+                        ColumnDef::new(Group::CreatedAt)
+                            .timestamp()
+                            .not_null()
+                            .extra("DEFAULT now()::TIMESTAMP"),
+                    )
+                    .col(ColumnDef::new(Group::Owner).uuid().not_null())
+                    .col(ColumnDef::new(Group::Session).uuid().not_null())
+                    .col(ColumnDef::new(Group::Name).string())
                     .to_owned(),
             )
             .await?;
         manager
             .create_foreign_key(
                 ForeignKey::create()
-                    .from(Feed::Table, Feed::Message)
-                    .to(Message::Table, Message::Id)
-                    .on_delete(ForeignKeyAction::Cascade)
-                    .name("FK_FEED_MESSAGE_MESSAGE_ID")
-                    .to_owned(),
-            )
-            .await?;
-        manager
-            .create_foreign_key(
-                ForeignKey::create()
-                    .from(Feed::Table, Feed::User)
+                    .from(Group::Table, Group::Owner)
                     .to(User::Table, User::Id)
                     .on_delete(ForeignKeyAction::Cascade)
-                    .name("FK_FEED_USER_USER_ID")
+                    .name("FK_GROUP_OWNER_USER_ID")
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .from(Group::Table, Group::Session)
+                    .to(Session::Table, Session::Id)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .name("FK_GROUP_SESSION_SESSION_ID")
                     .to_owned(),
             )
             .await
@@ -57,30 +64,31 @@ impl MigrationTrait for Migration {
         manager
             .drop_foreign_key(
                 ForeignKey::drop()
-                    .name("FK_FEED_MESSAGE_MESSAGE_ID")
-                    .table(Feed::Table)
+                    .name("FK_GROUP_SESSION_SESSION_ID")
+                    .table(Group::Table)
                     .to_owned(),
             )
             .await?;
         manager
             .drop_foreign_key(
                 ForeignKey::drop()
-                    .name("FK_FEED_USER_USER_ID")
-                    .table(Feed::Table)
+                    .name("FK_GROUP_OWNER_USER_ID")
+                    .table(Group::Table)
                     .to_owned(),
             )
             .await?;
         manager
-            .drop_table(Table::drop().table(Feed::Table).to_owned())
+            .drop_table(Table::drop().table(Group::Table).to_owned())
             .await
     }
 }
 
 #[derive(Iden)]
-pub enum Feed {
+pub enum Group {
     Table,
     Id,
-    User,
-    Message,
-    ReadAt,
+    Name,
+    CreatedAt,
+    Owner,
+    Session,
 }

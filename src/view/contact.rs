@@ -64,7 +64,6 @@ pub async fn add_contact_handler(
     let s = session::ActiveModel {
         id: ActiveValue::not_set(),
         created_at: ActiveValue::not_set(),
-        name: ActiveValue::not_set(),
     };
     let s = Session::insert(s).exec(&state.conn).await?.last_insert_id;
     let c = contact::ActiveModel {
@@ -72,7 +71,7 @@ pub async fn add_contact_handler(
         user: ActiveValue::set(user.id),
         ref_user: ActiveValue::set(Some(con.id)),
         alias: ActiveValue::set(con.alias),
-        chat: ActiveValue::set(s),
+        session: ActiveValue::set(s),
         created_at: ActiveValue::not_set(),
         category: ActiveValue::not_set(),
     };
@@ -183,16 +182,16 @@ pub async fn accept_contact_handler(
             con.id,
             user.id
         ))?;
-    let s = Session::find_by_id(entry.chat)
+    let s = Session::find_by_id(entry.session)
         .one(&state.conn)
         .await?
-        .ok_or(anyhow::anyhow!("session not found [{}]", entry.chat))?;
+        .ok_or(anyhow::anyhow!("session not found [{}]", entry.session))?;
     let c = contact::ActiveModel {
         id: ActiveValue::not_set(),
         user: ActiveValue::set(user.id),
         ref_user: ActiveValue::set(Some(con.id)),
         alias: ActiveValue::set(con.alias),
-        chat: ActiveValue::set(s.id),
+        session: ActiveValue::set(s.id),
         created_at: ActiveValue::not_set(),
         category: ActiveValue::not_set(),
     };

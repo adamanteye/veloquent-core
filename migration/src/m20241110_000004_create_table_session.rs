@@ -30,17 +30,16 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .extra("DEFAULT now()::TIMESTAMP"),
                     )
-                    .col(ColumnDef::new(Session::Name).string())
                     .to_owned(),
             )
             .await?;
         manager
             .create_foreign_key(
                 ForeignKey::create()
-                    .from(Contact::Table, Contact::Chat)
+                    .from(Contact::Table, Contact::Session)
                     .to(Session::Table, Session::Id)
                     .on_delete(ForeignKeyAction::Cascade)
-                    .name("FK_CONTACT_CHAT_SESSION_ID")
+                    .name("FK_CONTACT_SESSION_SESSION_ID")
                     .to_owned(),
             )
             .await
@@ -50,7 +49,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_foreign_key(
                 ForeignKey::drop()
-                    .name("FK_CONTACT_CHAT_SESSION_ID")
+                    .name("FK_CONTACT_SESSION_SESSION_ID")
                     .table(Contact::Table)
                     .to_owned(),
             )
@@ -65,6 +64,5 @@ impl MigrationTrait for Migration {
 pub enum Session {
     Table,
     Id,
-    Name,
     CreatedAt,
 }

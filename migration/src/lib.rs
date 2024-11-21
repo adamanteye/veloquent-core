@@ -6,6 +6,7 @@ mod m20241028_000003_create_table_contact;
 mod m20241110_000004_create_table_session;
 mod m20241121_000005_create_table_message;
 mod m20241121_000006_create_table_feed;
+mod m20241121_000007_create_table_group;
 
 /// 数据库定义
 pub struct Migrator;
@@ -20,6 +21,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20241110_000004_create_table_session::Migration),
             Box::new(m20241121_000005_create_table_message::Migration),
             Box::new(m20241121_000006_create_table_feed::Migration),
+            Box::new(m20241121_000007_create_table_group::Migration),
         ]
     }
 }

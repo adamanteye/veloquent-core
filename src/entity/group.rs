@@ -3,16 +3,14 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "contact")]
+#[sea_orm(table_name = "group")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    pub user: Uuid,
-    pub ref_user: Option<Uuid>,
-    pub category: Option<String>,
-    pub session: Uuid,
-    pub alias: Option<String>,
     pub created_at: DateTime,
+    pub owner: Uuid,
+    pub session: Uuid,
+    pub name: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -27,25 +25,23 @@ pub enum Relation {
     Session,
     #[sea_orm(
         belongs_to = "super::user::Entity",
-        from = "Column::RefUser",
-        to = "super::user::Column::Id",
-        on_update = "NoAction",
-        on_delete = "SetNull"
-    )]
-    User2,
-    #[sea_orm(
-        belongs_to = "super::user::Entity",
-        from = "Column::User",
+        from = "Column::Owner",
         to = "super::user::Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    User1,
+    User,
 }
 
 impl Related<super::session::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Session.def()
+    }
+}
+
+impl Related<super::user::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::User.def()
     }
 }
 

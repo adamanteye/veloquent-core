@@ -27,7 +27,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Contact::User).uuid().not_null())
                     .col(ColumnDef::new(Contact::RefUser).uuid())
                     .col(ColumnDef::new(Contact::Category).string())
-                    .col(ColumnDef::new(Contact::Chat).uuid().not_null())
+                    .col(ColumnDef::new(Contact::Session).uuid().not_null())
                     .col(ColumnDef::new(Contact::Alias).string())
                     .col(
                         ColumnDef::new(Contact::CreatedAt)
@@ -91,6 +91,6 @@ pub enum Contact {
     RefUser,
     Alias,
     Category,
-    Chat,
+    Session,
     CreatedAt,
 }

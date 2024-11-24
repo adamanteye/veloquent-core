@@ -113,7 +113,10 @@ impl From<message::Model> for MessageResponse {
 utoipa::path(
     post,
     path = "/msg/{id}",
-    request_body = MessegePost,
+    params(
+        ("id" = String, Path, description = "会话的唯一主键")
+    ),
+    request_body = MessagePost,
     responses(
         (status = 200, description = "发送成功, 服务器成功存储", body = MessageResponse),
     ),

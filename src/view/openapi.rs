@@ -14,6 +14,7 @@ use utoipa::OpenApi;
         contact::add_contact_handler, contact::get_contacts_handler,
         contact::get_pending_contacts_handler, contact::delete_contact_handler,
         contact::accept_contact_handler, contact::reject_contact_handler,
+        message::send_msg_handler,
         avatar::upload_avatar_handler,
         download::download_handler,
     ),
@@ -25,12 +26,14 @@ use utoipa::OpenApi;
             login::LoginRequest, login::LoginResponse,
             user_find::UserList,
             download::Resource,
-            contact::ContactList, contact::Chat
+            contact::ContactList, contact::Chat,
+            message::MessagePost, message::MessageResponse
         )
     ),
     tags(
         (name = "user", description = "用户管理"),
         (name = "contact", description = "好友管理"),
+        (name = "msg", description = "消息发送"),
         (name = "static", description = "静态资源")
     )
 )]

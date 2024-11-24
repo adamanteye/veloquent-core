@@ -43,6 +43,7 @@ mod avatar;
 mod contact;
 mod download;
 mod login;
+mod message;
 #[cfg(feature = "dev")]
 mod openapi;
 mod user_delete;
@@ -153,6 +154,10 @@ pub fn router(state: AppState) -> Router {
             post(contact::reject_contact_handler)
                 .delete(contact::delete_contact_handler)
                 .route_layer(auth.clone()),
+        )
+        .route(
+            "/msg/:id",
+            post(message::send_msg_handler).route_layer(auth.clone()),
         )
         .route(
             "/upload/avatar",

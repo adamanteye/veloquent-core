@@ -34,7 +34,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Message::Session).uuid().not_null())
                     .col(ColumnDef::new(Message::EditedAt).timestamp())
                     .col(ColumnDef::new(Message::Content).string())
-                    .col(ColumnDef::new(Message::Typ).integer())
+                    .col(ColumnDef::new(Message::Typ).integer().not_null())
                     .col(ColumnDef::new(Message::File).uuid())
                     .col(ColumnDef::new(Message::Sender).uuid())
                     .col(ColumnDef::new(Message::Cite).uuid())

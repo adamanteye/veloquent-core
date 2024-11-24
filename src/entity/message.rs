@@ -11,7 +11,7 @@ pub struct Model {
     pub session: Uuid,
     pub edited_at: Option<DateTime>,
     pub content: Option<String>,
-    pub typ: Option<i32>,
+    pub typ: i32,
     pub file: Option<Uuid>,
     pub sender: Option<Uuid>,
     pub cite: Option<Uuid>,

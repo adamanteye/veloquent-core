@@ -1,7 +1,6 @@
-use std::str::FromStr;
-
 use super::*;
 use entity::{message, prelude::Message as MessageEntity};
+use std::str::FromStr;
 
 #[derive(prost::Message)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]

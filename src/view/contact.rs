@@ -85,6 +85,51 @@ pub async fn add_contact_handler(
     Ok(StatusCode::OK.into_response())
 }
 
+/// 拒绝好友申请
+#[cfg_attr(feature = "dev",
+utoipa::path(post, path = "/contact/delete",
+    params(
+        ("id" = Uuid, Path, description = "要拒绝的用户主键") ), responses(
+        (status = 200, description = "拒绝成功")
+    ),
+    tag = "contact"
+))]
+#[instrument(skip(state))]
+pub async fn reject_contact_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(con): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let c: contact::ActiveModel = Contact::find()
+        .filter(
+            Condition::all()
+                .add(contact::Column::User.eq(con))
+                .add(contact::Column::RefUser.eq(payload.id)),
+        )
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!(
+            "cannot find contact [{}] of [{}]",
+            payload.id, con
+        )))?
+        .into();
+    let u: Option<contact::Model> = Contact::find()
+        .filter(
+            Condition::all()
+                .add(contact::Column::RefUser.eq(con))
+                .add(contact::Column::User.eq(payload.id)),
+        )
+        .one(&state.conn)
+        .await?;
+    if u.is_some() {
+        return Err(AppError::Conflict(format!(
+            "contact relation exist [{}:{}]",
+            payload.id, con
+        )));
+    }
+    Contact::delete(c).exec(&state.conn).await?;
+    Ok(StatusCode::OK.into_response())
+}
 /// 删除好友
 #[cfg_attr(feature = "dev",
 utoipa::path(delete, path = "/contact/delete",

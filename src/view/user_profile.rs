@@ -25,7 +25,9 @@ pub struct UserProfile {
     /// 头像
     pub avatar: String,
     /// 创建时间
-    pub created_at: String,
+    ///
+    /// UTC 毫秒时间戳
+    pub created_at: i64,
 }
 
 impl From<user::Model> for UserProfile {
@@ -37,7 +39,7 @@ impl From<user::Model> for UserProfile {
             alias: user.alias.unwrap_or_default(),
             email: user.email,
             phone: user.phone,
-            created_at: user.created_at.to_string(),
+            created_at: user.created_at.and_utc().timestamp_millis(),
             avatar: user.avatar.unwrap_or_default().to_string(),
             bio: user.bio.unwrap_or_default(),
             link: user.link.unwrap_or_default(),
@@ -74,7 +76,7 @@ mod test {
                 name: "test".to_string(),
                 email: "adamanteye@example.com".to_string(),
                 phone: "1234567890".to_string(),
-                created_at: created_at.to_string(),
+                created_at: created_at.and_utc().timestamp_millis(),
                 gender: 0,
                 avatar: uuid::Uuid::default().to_string(),
                 alias: String::default(),

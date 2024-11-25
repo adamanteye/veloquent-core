@@ -10,7 +10,13 @@ pub async fn delete_user_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
 ) -> Result<Response, AppError> {
-    let _: DeleteResult = User::delete_by_id(payload.id).exec(&state.conn).await?;
+    let res: DeleteResult = User::delete_by_id(payload.id).exec(&state.conn).await?;
+    if res.rows_affected == 0 {
+        return Err(AppError::NotFound(format!(
+            "cannot delete user [{}]",
+            payload.id
+        )));
+    }
     event!(Level::INFO, "delete user [{}]", payload.id);
     Ok(StatusCode::NO_CONTENT.into_response())
 }

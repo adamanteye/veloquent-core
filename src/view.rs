@@ -141,6 +141,10 @@ pub fn router(state: AppState) -> Router {
             get(contact::get_pending_contacts_handler).route_layer(auth.clone()),
         )
         .route(
+            "/contact/new",
+            post(contact::get_new_contacts_handler).route_layer(auth.clone()),
+        )
+        .route(
             "/contact/new/:id",
             post(contact::add_contact_handler).route_layer(auth.clone()),
         )

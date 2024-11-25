@@ -346,6 +346,34 @@ pub async fn notify_new_contacts(
     Ok(WebSocketMessage::Text(format!("{:?}", Json(data))))
 }
 
+/// 获取待通过好友列表
+#[cfg_attr(feature = "dev",
+utoipa::path(get, path = "/contact/new",
+    responses(
+        (status = 200, description = "获取成功", body = ContactList)
+    ),
+    tag = "contact"
+))]
+#[instrument(skip(state))]
+pub async fn get_new_contacts_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+) -> Result<Json<ContactList>, AppError> {
+    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user [{}]",
+        payload.id
+    )))?;
+    let data = ContactList::query_new_contact(user, &state.conn).await?;
+    event!(
+        Level::DEBUG,
+        "get new contact list [{:?}] of user [{}]",
+        data,
+        payload.id
+    );
+    Ok(Json(data))
+}
+
 /// 获取好友列表
 #[cfg_attr(feature = "dev",
 utoipa::path(get, path = "/contact/list",

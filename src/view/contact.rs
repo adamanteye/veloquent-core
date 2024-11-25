@@ -379,7 +379,12 @@ pub async fn get_contacts_handler(
         payload.id
     )))?;
     let data = ContactList::query_contact(user, &state.conn).await?;
-    event!(Level::DEBUG, "get contact list of user [{}]", payload.id);
+    event!(
+        Level::DEBUG,
+        "get contact list [{:?}] of user [{}]",
+        data,
+        payload.id
+    );
     Ok(Protobuf(data))
 }
 
@@ -405,7 +410,8 @@ pub async fn get_pending_contacts_handler(
     let data = ContactList::query_pending_contact(user, &state.conn).await?;
     event!(
         Level::DEBUG,
-        "get pending contact list of user [{}]",
+        "get pending contact list [{:?}] of user [{}]",
+        data,
         payload.id
     );
     Ok(Protobuf(data))

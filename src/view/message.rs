@@ -91,8 +91,8 @@ pub struct Msg {
     /// 发送者 UUID
     ///
     /// `tag` = `4`
-    #[prost(string, tag = "4")]
-    sender: String,
+    #[prost(string, optional, tag = "4")]
+    sender: Option<String>,
     /// 引用消息的 UUID
     ///
     /// `tag` = `5`
@@ -113,6 +113,23 @@ pub struct Msg {
     /// `tag` = `8`
     #[prost(string, optional, tag = "8")]
     file: Option<String>,
+}
+
+impl From<message::Model> for Msg {
+    fn from(value: message::Model) -> Self {
+        Msg {
+            id: value.id.to_string(),
+            created_at: value.created_at.and_utc().timestamp_millis(),
+            edited_at: value
+                .edited_at
+                .and_then(|t| Some(t.and_utc().timestamp_millis())),
+            typ: value.typ,
+            content: value.content,
+            file: value.file.map(|f| f.to_string()),
+            sender: value.sender.map(|s| s.to_string()),
+            cite: value.cite.map(|c| c.to_string()),
+        }
+    }
 }
 
 #[derive(prost::Message)]

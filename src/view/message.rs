@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 #[derive(prost::Message)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
-pub struct MessagePost {
+pub struct MsgPost {
     /// 指示消息类型
     ///
     /// | 值 | 类型 |
@@ -35,9 +35,9 @@ pub struct MessagePost {
     pub file: Option<String>,
 }
 
-impl TryFrom<(MessagePost, Uuid, Uuid)> for message::ActiveModel {
+impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
     type Error = AppError;
-    fn try_from(value: (MessagePost, Uuid, Uuid)) -> Result<Self, Self::Error> {
+    fn try_from(value: (MsgPost, Uuid, Uuid)) -> Result<Self, Self::Error> {
         let file = match value
             .0
             .file
@@ -72,7 +72,7 @@ impl TryFrom<(MessagePost, Uuid, Uuid)> for message::ActiveModel {
 
 #[derive(prost::Message)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
-pub struct MessageResponse {
+pub struct MsgRes {
     /// 指示消息类型
     ///
     /// | 值 | 类型 |
@@ -89,19 +89,19 @@ pub struct MessageResponse {
     /// `tag` = `2`
     #[prost(string, tag = "2")]
     pub id: String,
-    /// 服务器时间
+    /// UTC 毫秒时间戳
     ///
     /// `tag` = `3`
-    #[prost(string, tag = "3")]
-    pub created_at: String,
+    #[prost(int64, tag = "3")]
+    pub created_at: i64,
 }
 
-impl From<message::Model> for MessageResponse {
+impl From<message::Model> for MsgRes {
     fn from(value: message::Model) -> Self {
         Self {
             typ: value.typ,
             id: value.id.to_string(),
-            created_at: value.created_at.to_string(),
+            created_at: value.created_at.and_utc().timestamp_millis(),
         }
     }
 }
@@ -112,7 +112,7 @@ impl From<message::Model> for MessageResponse {
 #[cfg_attr(feature = "dev",
 utoipa::path(
     post,
-    path = "/msg/{id}",
+    path = "/msg/session/{id}",
     params(
         ("id" = String, Path, description = "会话的唯一主键")
     ),
@@ -127,8 +127,8 @@ pub async fn send_msg_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
     Path(session): Path<Uuid>,
-    Protobuf(msg): Protobuf<MessagePost>,
-) -> Result<Protobuf<MessageResponse>, AppError> {
+    Protobuf(msg): Protobuf<MsgPost>,
+) -> Result<Protobuf<MsgRes>, AppError> {
     let msg: message::ActiveModel = (msg, payload.id, session).try_into()?;
     let res = MessageEntity::insert(msg).exec(&state.conn).await?;
     event!(Level::DEBUG, "send message: [{:?}]", res);

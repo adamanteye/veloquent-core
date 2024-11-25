@@ -27,7 +27,7 @@ use utoipa::OpenApi;
             user_find::UserList,
             download::Resource,
             contact::ContactList, contact::Chat,
-            message::MessagePost, message::MessageResponse
+            message::MsgPost, message::MsgRes
         )
     ),
     tags(

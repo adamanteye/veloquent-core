@@ -42,6 +42,7 @@ use prost::Message;
 mod avatar;
 mod contact;
 mod download;
+mod history;
 mod login;
 mod message;
 #[cfg(feature = "dev")]
@@ -156,7 +157,7 @@ pub fn router(state: AppState) -> Router {
                 .route_layer(auth.clone()),
         )
         .route(
-            "/msg/:id",
+            "/msg/session/:id",
             post(message::send_msg_handler).route_layer(auth.clone()),
         )
         .route(

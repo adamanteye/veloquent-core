@@ -37,8 +37,6 @@ use utoipa::{IntoParams, ToSchema};
 #[cfg(feature = "dev")]
 use utoipa_swagger_ui::SwaggerUi;
 
-use prost::Message;
-
 mod avatar;
 mod contact;
 mod download;

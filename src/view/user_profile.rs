@@ -4,57 +4,27 @@ use utility::{good_email, good_phone};
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
-#[derive(Clone, PartialEq, prost::Message)]
+#[derive(Clone, PartialEq, Serialize, Debug)]
 pub struct UserProfile {
     /// 主键
-    ///
-    /// `tag` = `1`
-    #[prost(string, tag = "1")]
     pub id: String,
     /// 用户名
-    ///
-    /// `tag` = `2`
-    #[prost(string, tag = "2")]
     pub name: String,
     /// 别名
-    ///
-    /// `tag` = `3`
-    #[prost(string, tag = "3")]
     pub alias: String,
     /// 邮箱
-    ///
-    /// `tag` = `4`
-    #[prost(string, tag = "4")]
     pub email: String,
     /// 电话
-    ///
-    /// `tag` = `5`
-    #[prost(string, tag = "5")]
     pub phone: String,
     /// 个人链接
-    ///
-    /// `tag` = `6`
-    #[prost(string, tag = "6")]
     pub link: String,
     /// 性别
-    ///
-    /// `tag` = `7`
-    #[prost(int32, tag = "7")]
     pub gender: i32,
     /// 个性简介
-    ///
-    /// `tag` = `8`
-    #[prost(string, tag = "8")]
     pub bio: String,
     /// 头像
-    ///
-    /// `tag` = `9`
-    #[prost(string, tag = "9")]
     pub avatar: String,
     /// 创建时间
-    ///
-    /// `tag` = `10`
-    #[prost(string, tag = "10")]
     pub created_at: String,
 }
 
@@ -123,15 +93,13 @@ pub struct UserProfileParams {
 }
 
 /// 获取用户信息
-///
-/// 返回的格式为 protobuf 数据
 #[cfg_attr(feature = "dev",
 utoipa::path(
     get,
     path = "/user/profile",
     params(UserProfileParams),
     responses(
-        (status = 200, description = "获取成功, 返回 protobuf 数据", body = UserProfile),
+        (status = 200, description = "获取成功", body = UserProfile),
         (status = 400, description = "提取 Authorization Bearer 失败", body = AppErrorResponse, example = json!({"msg":"token not found: [invalid HTTP header (authorization)]","ver": "0.1.1"})),
         (status = 401, description = "验证用户失败", body = AppErrorResponse, example = json!({"msg":"invalid JWT: [InvalidSignature]","ver": "0.1.1"}))
     ),
@@ -142,7 +110,7 @@ pub async fn get_profile_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
     Query(params): Query<UserProfileParams>,
-) -> Result<Protobuf<UserProfile>, AppError> {
+) -> Result<Json<UserProfile>, AppError> {
     let user: Option<user::Model> = User::find_by_id(params.id.unwrap_or(payload.id))
         .one(&state.conn)
         .await?;
@@ -151,46 +119,25 @@ pub async fn get_profile_handler(
         payload.id
     )))?;
     event!(Level::DEBUG, "get user profile: [{:?}]", user);
-    Ok(Protobuf(UserProfile::from(user)))
+    Ok(Json(UserProfile::from(user)))
 }
 
 #[cfg_attr(feature = "dev", derive(ToSchema))]
-#[derive(Clone, prost::Message)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct UserProfileEdition {
     /// 用户名
-    ///
-    /// `tag` = `1`, optional
-    #[prost(string, optional, tag = "1")]
     pub name: Option<String>,
     /// 别名
-    ///
-    /// `tag` = `2`, optional
-    #[prost(string, optional, tag = "2")]
     pub alias: Option<String>,
     /// 邮箱
-    ///
-    /// `tag` = `3`, optional
-    #[prost(string, optional, tag = "3")]
     pub email: Option<String>,
     /// 电话
-    ///
-    /// `tag` = `4`, optional
-    #[prost(string, optional, tag = "4")]
     pub phone: Option<String>,
     /// 个人链接
-    ///
-    /// `tag` = `5`, optional
-    #[prost(string, optional, tag = "5")]
     pub link: Option<String>,
     /// 性别
-    ///
-    /// `tag` = `6`, optional
-    #[prost(int32, optional, tag = "6")]
     pub gender: Option<i32>,
     /// 个性简介
-    ///
-    /// `tag` = `7`, optional
-    #[prost(string, optional, tag = "7")]
     pub bio: Option<String>,
 }
 
@@ -252,7 +199,7 @@ utoipa::path(
 pub async fn update_profile_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
-    Protobuf(edition): Protobuf<UserProfileEdition>,
+    Json(edition): Json<UserProfileEdition>,
 ) -> Result<Response, AppError> {
     User::find_by_id(payload.id)
         .one(&state.conn)

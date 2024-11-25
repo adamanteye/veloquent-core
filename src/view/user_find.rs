@@ -2,10 +2,9 @@ use super::*;
 use entity::{prelude::User, user};
 
 #[cfg_attr(feature = "dev", derive(ToSchema))]
-#[derive(prost::Message)]
+#[derive(Serialize, Debug)]
 pub struct UserList {
     /// 用户主键列表
-    #[prost(message, repeated, tag = "1")]
     pub users: Vec<String>,
 }
 
@@ -53,15 +52,13 @@ impl UserList {
     }
 }
 /// 查找用户
-///
-/// 返回的格式为 protobuf 数据
 #[cfg_attr(feature = "dev",
 utoipa::path(
     get,
     path = "/user",
     params(UserFindRequest),
     responses(
-        (status = 200, description = "获取成功, 返回 protobuf 数据", body = UserList),
+        (status = 200, description = "获取成功", body = UserList),
     ),
     tag = "user"
 ))]
@@ -70,8 +67,8 @@ pub async fn find_user_handler(
     State(state): State<AppState>,
     _payload: JWTPayload,
     Query(params): Query<UserFindRequest>,
-) -> Result<Protobuf<UserList>, AppError> {
+) -> Result<Json<UserList>, AppError> {
     let users = UserList::find(params, &state.conn).await?;
     event!(Level::DEBUG, "conditional find users: [{:?}]", users);
-    Ok(Protobuf(users))
+    Ok(Json(users))
 }

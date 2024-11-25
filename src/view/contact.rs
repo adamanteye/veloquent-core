@@ -255,33 +255,21 @@ pub async fn accept_contact_handler(
 /// 好友(申请)列表
 ///
 /// 用于返回好友列表与返回好友申请
-#[derive(prost::Message)]
+#[derive(Serialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct ContactList {
     /// 好友(申请)数量
-    ///
-    /// `tag` = `1`
-    #[prost(int32, tag = "1")]
     pub num: i32,
     /// 好友(申请者)的UUID
-    ///
-    /// `tag` = `2`
-    #[prost(message, repeated, tag = "2")]
     pub user: Vec<Chat>,
 }
 
-#[derive(prost::Message)]
+#[derive(Serialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct Chat {
     /// 好友(申请者)的UUID
-    ///
-    /// `tag` = `1`
-    #[prost(string, tag = "1")]
     pub id: String,
     /// 会话
-    ///
-    /// `tag` = `2`
-    #[prost(string, tag = "2")]
     pub session: String,
 }
 
@@ -352,15 +340,13 @@ pub async fn notify_new_contacts(
         "cannot find user [{}]",
         user_id
     )))?;
-    let data = Protobuf(ContactList::query_new_contact(user, &state.conn).await?);
+    let data = ContactList::query_new_contact(user, &state.conn).await?;
     event!(Level::DEBUG, "get new contact list of user [{}]", user_id);
-    let buf = data.0.encode_to_vec();
-    Ok(WebSocketMessage::Binary(buf))
+    let data = Json(data);
+    Ok(WebSocketMessage::Text(format!("{:?}", Json(data))))
 }
 
 /// 获取好友列表
-///
-/// 返回 Protobuf 格式数据
 #[cfg_attr(feature = "dev",
 utoipa::path(get, path = "/contact/list",
     responses(
@@ -372,7 +358,7 @@ utoipa::path(get, path = "/contact/list",
 pub async fn get_contacts_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
-) -> Result<Protobuf<ContactList>, AppError> {
+) -> Result<Json<ContactList>, AppError> {
     let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
@@ -385,12 +371,10 @@ pub async fn get_contacts_handler(
         data,
         payload.id
     );
-    Ok(Protobuf(data))
+    Ok(Json(data))
 }
 
 /// 获取发起申请但待通过的好友列表
-///
-/// 返回 Protobuf 格式数据
 #[cfg_attr(feature = "dev",
 utoipa::path(get, path = "/contact/pending",
     responses(
@@ -401,7 +385,7 @@ utoipa::path(get, path = "/contact/pending",
 pub async fn get_pending_contacts_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
-) -> Result<Protobuf<ContactList>, AppError> {
+) -> Result<Json<ContactList>, AppError> {
     let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
@@ -414,5 +398,5 @@ pub async fn get_pending_contacts_handler(
         data,
         payload.id
     );
-    Ok(Protobuf(data))
+    Ok(Json(data))
 }

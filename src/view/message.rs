@@ -2,7 +2,7 @@ use super::*;
 use entity::{message, prelude::Message as MessageEntity};
 use std::str::FromStr;
 
-#[derive(prost::Message)]
+#[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct MsgPost {
     /// 指示消息类型
@@ -12,26 +12,14 @@ pub struct MsgPost {
     /// | 0 | 文本 |
     /// | 1 | 图片 |
     /// | 2 | 文件 |
-    ///
-    /// `tag` = `1`
-    #[prost(int32, tag = "1")]
     pub typ: i32,
     /// 消息内容
     ///
     /// 在消息的值为图片或文件时, 消息内容存储消息的文件名, 即需要先上传文件再发送消息
-    ///
-    /// `tag` = `2`
-    #[prost(string, optional, tag = "2")]
     pub content: Option<String>,
     /// 引用消息的 UUID
-    ///
-    /// `tag` = `3`
-    #[prost(string, optional, tag = "3")]
     pub cite: Option<String>,
     /// 消息的文件 UUID
-    ///
-    /// `tag` = `4`
-    #[prost(string, optional, tag = "4")]
     pub file: Option<String>,
 }
 
@@ -70,48 +58,24 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
     }
 }
 
-#[derive(prost::Message)]
+#[derive(Serialize)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct Msg {
     /// 消息 UUID
-    ///
-    /// `tag` = `1`
-    #[prost(string, tag = "1")]
     id: String,
-    #[prost(int64, tag = "2")]
     /// 创建时间戳, UTC 毫秒
-    ///
-    /// `tag` = `2`
     created_at: i64,
     /// 修改时间戳, UTC 毫秒
-    ///
-    /// `tag` = `3`
-    #[prost(int64, optional, tag = "3")]
     edited_at: Option<i64>,
     /// 发送者 UUID
-    ///
-    /// `tag` = `4`
-    #[prost(string, optional, tag = "4")]
     sender: Option<String>,
     /// 引用消息的 UUID
-    ///
-    /// `tag` = `5`
-    #[prost(string, optional, tag = "5")]
     cite: Option<String>,
     /// 消息类型
-    ///
-    /// `tag` = `6`
-    #[prost(int32, tag = "6")]
     typ: i32,
     /// 消息内容
-    ///
-    /// `tag` = `7`
-    #[prost(string, optional, tag = "7")]
     content: Option<String>,
     /// 文件 UUID
-    ///
-    /// `tag` = `8`
-    #[prost(string, optional, tag = "8")]
     file: Option<String>,
 }
 
@@ -132,7 +96,7 @@ impl From<message::Model> for Msg {
     }
 }
 
-#[derive(prost::Message)]
+#[derive(Serialize)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct MsgRes {
     /// 指示消息类型
@@ -142,19 +106,10 @@ pub struct MsgRes {
     /// | 0 | 文本 |
     /// | 1 | 图片 |
     /// | 2 | 文件 |
-    ///
-    /// `tag` = `1`
-    #[prost(int32, tag = "1")]
     pub typ: i32,
     /// 消息 UUID
-    ///
-    /// `tag` = `2`
-    #[prost(string, tag = "2")]
     pub id: String,
     /// UTC 毫秒时间戳
-    ///
-    /// `tag` = `3`
-    #[prost(int64, tag = "3")]
     pub created_at: i64,
 }
 
@@ -169,8 +124,6 @@ impl From<message::Model> for MsgRes {
 }
 
 /// 发送新消息
-///
-/// 返回 protobuf 格式的响应
 #[cfg_attr(feature = "dev",
 utoipa::path(
     post,
@@ -189,8 +142,8 @@ pub async fn send_msg_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
     Path(session): Path<Uuid>,
-    Protobuf(msg): Protobuf<MsgPost>,
-) -> Result<Protobuf<MsgRes>, AppError> {
+    Json(msg): Json<MsgPost>,
+) -> Result<Json<MsgRes>, AppError> {
     let msg: message::ActiveModel = (msg, payload.id, session).try_into()?;
     let res = MessageEntity::insert(msg).exec(&state.conn).await?;
     event!(Level::DEBUG, "send message: [{:?}]", res);
@@ -198,5 +151,5 @@ pub async fn send_msg_handler(
         .one(&state.conn)
         .await?
         .ok_or(AppError::Server(anyhow::anyhow!("cannot store message")))?;
-    Ok(Protobuf(msg.into()))
+    Ok(Json(msg.into()))
 }

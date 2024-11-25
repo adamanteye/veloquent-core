@@ -2,32 +2,20 @@ use super::message::Msg;
 use super::*;
 
 #[cfg_attr(feature = "dev", derive(ToSchema))]
-#[derive(prost::Message)]
+#[derive(Serialize)]
 pub struct History {
     /// 消息列表
-    ///
-    /// `tag` = `1`
-    #[prost(message, repeated, tag = "1")]
     pub users: Vec<Msg>,
     /// 起始位置
     ///
     /// 最小值为 `0`, 代表上一条消息
-    ///
-    /// `tag` = `2`
-    #[prost(int32, tag = "2")]
     pub start: i32,
     /// 结束位置
     ///
     /// 最大值为 `cnt`
-    ///
-    /// `tag` = `3`
-    #[prost(int32, tag = "3")]
     pub end: i32,
     /// 聊天消息总数
     ///
     /// 这代表服务器存储的消息总数
-    ///
-    /// `tag` = `4`
-    #[prost(int32, tag = "4")]
     pub cnt: i32,
 }

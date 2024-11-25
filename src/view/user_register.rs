@@ -6,17 +6,14 @@ use utility::{gen_hash_and_salt, good_email, good_phone};
 /// 用户创建请求体
 ///
 /// 不提供该字段表示不进行设置或修改, 提供空字符串表示置为默认
-#[derive(prost::Message)]
+#[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct RegisterProfile {
     /// 用户名
-    #[prost(string, tag = "6")]
     pub name: String,
     /// 别名
-    #[prost(string, optional, tag = "1")]
     pub alias: Option<String>,
     /// 电话号码
-    #[prost(string, tag = "8")]
     pub phone: String,
     /// 性别
     ///
@@ -25,19 +22,14 @@ pub struct RegisterProfile {
     /// | 0 | 未指定 |
     /// | 1 | 女性 |
     /// | 2 | 男性 |
-    #[prost(int32, optional, tag = "4")]
     pub gender: Option<i32>,
     /// 个性简介
-    #[prost(string, optional, tag = "2")]
     pub bio: Option<String>,
     /// 个人链接
-    #[prost(string, optional, tag = "5")]
     pub link: Option<String>,
     /// 密码
-    #[prost(string, tag = "7")]
     pub password: String,
     /// 邮件地址
-    #[prost(string, tag = "3")]
     pub email: String,
 }
 
@@ -77,8 +69,6 @@ impl TryFrom<RegisterProfile> for user::ActiveModel {
 }
 
 /// 注册新用户
-///
-/// 返回 protobuf 格式的 JWT
 #[cfg_attr(feature = "dev",
 utoipa::path(
     post,
@@ -92,7 +82,7 @@ utoipa::path(
 #[instrument(skip(state))]
 pub async fn register_handler(
     State(state): State<AppState>,
-    Protobuf(profile): Protobuf<RegisterProfile>,
+    Json(profile): Json<RegisterProfile>,
 ) -> Result<Response, AppError> {
     let user = user::ActiveModel::try_from(profile)?;
     let res = User::insert(user).exec(&state.conn).await?;
@@ -100,7 +90,7 @@ pub async fn register_handler(
     let res: JWTPayload = res.last_insert_id.into();
     Ok((
         StatusCode::CREATED,
-        Protobuf(LoginResponse { token: res.into() }),
+        Json(LoginResponse { token: res.into() }),
     )
         .into_response())
 }

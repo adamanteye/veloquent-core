@@ -3,16 +3,14 @@ use entity::{prelude::User, user};
 use utility::validate_passwd;
 
 /// 登录请求体
-#[derive(prost::Message)]
+#[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct LoginRequest {
     /// 用户名
     #[cfg_attr(feature = "dev", schema(example = "yangzheh"))]
-    #[prost(string, tag = "1")]
     name: String,
     /// 密码
     #[cfg_attr(feature = "dev", schema(example = "123456"))]
-    #[prost(string, tag = "2")]
     password: String,
 }
 
@@ -38,22 +36,19 @@ impl LoginRequest {
 
 /// 登录响应体
 #[cfg_attr(feature = "dev", derive(ToSchema))]
-#[derive(prost::Message)]
+#[derive(Serialize)]
 pub struct LoginResponse {
-    /// JWT token (tag: 1)
+    /// JWT token
     #[cfg_attr(
         feature = "dev",
         schema(
             example = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6IjQ1OWE0MjBhLTQxNDMtNGFkYy1hZjgxLWQ1NGRmMjg4YmJlZCIsImV4cCI6MTcyOTE1MzUyNn0.lAM0QjzaJvaB8KgTcnRfUrEDOBwiBLIJ2u6yOivzsSk"
         )
     )]
-    #[prost(string, tag = "1")]
     pub token: String,
 }
 
 /// 登录
-///
-/// 返回 protobuf 格式的 JWT
 #[cfg_attr(feature = "dev",
 utoipa::path(
     post,
@@ -68,7 +63,7 @@ utoipa::path(
 #[instrument(skip(state))]
 pub async fn login_handler(
     State(state): State<AppState>,
-    Protobuf(user): Protobuf<LoginRequest>,
+    Json(user): Json<LoginRequest>,
 ) -> Result<Response, AppError> {
     if user.name.is_empty() || user.password.is_empty() {
         return Err(AppError::BadRequest("name or passwd is empty".to_string()));
@@ -77,7 +72,7 @@ pub async fn login_handler(
     event!(Level::INFO, "user login [{}]", user.name);
     Ok((
         StatusCode::OK,
-        Protobuf(LoginResponse {
+        Json(LoginResponse {
             token: payload.into(),
         }),
     )

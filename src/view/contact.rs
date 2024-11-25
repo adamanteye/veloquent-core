@@ -76,6 +76,8 @@ pub async fn add_contact_handler(
         category: ActiveValue::not_set(),
     };
     Contact::insert(c).exec(&state.conn).await?;
+    event!(Level::DEBUG, "create new session [{}]", s);
+    event!(Level::DEBUG, "user [{}] add [{}]", user.id, con.id);
     let s = state.clone();
     tokio::task::spawn(async move {
         state
@@ -286,18 +288,18 @@ pub struct Chat {
 #[derive(Debug, FromQueryResult)]
 struct UserUuid {
     user: Uuid,
-    chat: Uuid,
+    session: Uuid,
 }
 
 impl ContactList {
     async fn query_contact(user: user::Model, db: &DatabaseConnection) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT a.user, a.chat FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
+                    "SELECT a.user, a.session FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
         let user = contacts
             .iter()
             .map(|c| Chat {
                 id: c.user.to_string(),
-                session: c.chat.to_string(),
+                session: c.session.to_string(),
             })
             .collect();
         let num = contacts.len() as i32;
@@ -309,13 +311,13 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-            "SELECT contact.user, contact.chat FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
+            "SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
         let num = contacts.len() as i32;
         let user = contacts
             .iter()
             .map(|c| Chat {
                 id: c.user.to_string(),
-                session: c.chat.to_string(),
+                session: c.session.to_string(),
             })
             .collect();
         Ok(Self { num, user })
@@ -326,13 +328,13 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT contact.ref_user, contact.chat FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
+                    "SELECT contact.ref_user AS user, contact.session FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
         let num = contacts.len() as i32;
         let user = contacts
             .iter()
             .map(|c| Chat {
                 id: c.user.to_string(),
-                session: c.chat.to_string(),
+                session: c.session.to_string(),
             })
             .collect();
         Ok(Self { num, user })
@@ -350,8 +352,8 @@ pub async fn notify_new_contacts(
         "cannot find user [{}]",
         user_id
     )))?;
-    event!(Level::INFO, "get new contact list of user [{}]", user_id);
     let data = Protobuf(ContactList::query_new_contact(user, &state.conn).await?);
+    event!(Level::DEBUG, "get new contact list of user [{}]", user_id);
     let buf = data.0.encode_to_vec();
     Ok(WebSocketMessage::Binary(buf))
 }
@@ -376,13 +378,12 @@ pub async fn get_contacts_handler(
         "cannot find user [{}]",
         payload.id
     )))?;
-    event!(Level::INFO, "get contact list of user [{}]", payload.id);
-    Ok(Protobuf(
-        ContactList::query_contact(user, &state.conn).await?,
-    ))
+    let data = ContactList::query_contact(user, &state.conn).await?;
+    event!(Level::DEBUG, "get contact list of user [{}]", payload.id);
+    Ok(Protobuf(data))
 }
 
-/// 获取待通过好友列表
+/// 获取发起申请但待通过的好友列表
 ///
 /// 返回 Protobuf 格式数据
 #[cfg_attr(feature = "dev",
@@ -401,12 +402,11 @@ pub async fn get_pending_contacts_handler(
         "cannot find user [{}]",
         payload.id
     )))?;
+    let data = ContactList::query_pending_contact(user, &state.conn).await?;
     event!(
-        Level::INFO,
+        Level::DEBUG,
         "get pending contact list of user [{}]",
         payload.id
     );
-    Ok(Protobuf(
-        ContactList::query_pending_contact(user, &state.conn).await?,
-    ))
+    Ok(Protobuf(data))
 }

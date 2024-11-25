@@ -72,6 +72,51 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
 
 #[derive(prost::Message)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
+pub struct Msg {
+    /// 消息 UUID
+    ///
+    /// `tag` = `1`
+    #[prost(string, tag = "1")]
+    id: String,
+    #[prost(int64, tag = "2")]
+    /// 创建时间戳, UTC 毫秒
+    ///
+    /// `tag` = `2`
+    created_at: i64,
+    /// 修改时间戳, UTC 毫秒
+    ///
+    /// `tag` = `3`
+    #[prost(int64, optional, tag = "3")]
+    edited_at: Option<i64>,
+    /// 发送者 UUID
+    ///
+    /// `tag` = `4`
+    #[prost(string, tag = "4")]
+    sender: String,
+    /// 引用消息的 UUID
+    ///
+    /// `tag` = `5`
+    #[prost(string, optional, tag = "5")]
+    cite: Option<String>,
+    /// 消息类型
+    ///
+    /// `tag` = `6`
+    #[prost(int32, tag = "6")]
+    typ: i32,
+    /// 消息内容
+    ///
+    /// `tag` = `7`
+    #[prost(string, optional, tag = "7")]
+    content: Option<String>,
+    /// 文件 UUID
+    ///
+    /// `tag` = `8`
+    #[prost(string, optional, tag = "8")]
+    file: Option<String>,
+}
+
+#[derive(prost::Message)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct MsgRes {
     /// 指示消息类型
     ///

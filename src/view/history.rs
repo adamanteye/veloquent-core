@@ -1,13 +1,14 @@
+use super::message::Msg;
 use super::*;
 
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 #[derive(prost::Message)]
 pub struct History {
-    /// 消息主键列表
+    /// 消息列表
     ///
     /// `tag` = `1`
     #[prost(message, repeated, tag = "1")]
-    pub users: Vec<String>,
+    pub users: Vec<Msg>,
     /// 起始位置
     ///
     /// 最小值为 `0`, 代表上一条消息
@@ -22,7 +23,9 @@ pub struct History {
     /// `tag` = `3`
     #[prost(int32, tag = "3")]
     pub end: i32,
-    /// 消息总数
+    /// 聊天消息总数
+    ///
+    /// 这代表服务器存储的消息总数
     ///
     /// `tag` = `4`
     #[prost(int32, tag = "4")]

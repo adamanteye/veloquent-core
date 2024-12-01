@@ -137,10 +137,15 @@ pub async fn send_msg_handler(
 ) -> Result<Json<MsgRes>, AppError> {
     let msg: message::ActiveModel = (msg, payload.id, session).try_into()?;
     let res = MessageEntity::insert(msg).exec(&state.conn).await?;
-    event!(Level::DEBUG, "send message: [{:?}]", res);
     let msg = MessageEntity::find_by_id(res.last_insert_id)
         .one(&state.conn)
         .await?
         .ok_or(AppError::Server(anyhow::anyhow!("cannot store message")))?;
+    event!(
+        Level::DEBUG,
+        "new message [{}] by user [{}]",
+        msg.id,
+        payload.id
+    );
     Ok(Json(msg.into()))
 }

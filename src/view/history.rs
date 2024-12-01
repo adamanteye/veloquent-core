@@ -19,3 +19,14 @@ pub struct History {
     /// 这代表服务器存储的消息总数
     pub cnt: i32,
 }
+
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(Serialize)]
+pub struct HistoryRequest {
+    /// 最近一条消息, 默认为 `0`
+    pub start: Option<i32>,
+    /// 最早一条消息, 默认为 `50`
+    pub end: Option<i32>,
+    /// 会话 UUID
+    pub session: Uuid,
+}

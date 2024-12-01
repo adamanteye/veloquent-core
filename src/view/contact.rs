@@ -268,9 +268,9 @@ pub struct ContactList {
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct Chat {
     /// 好友(申请者)的UUID
-    pub id: String,
+    pub id: Uuid,
     /// 会话
-    pub session: String,
+    pub session: Uuid,
 }
 
 #[derive(Debug, FromQueryResult)]
@@ -286,8 +286,8 @@ impl ContactList {
         let user = contacts
             .iter()
             .map(|c| Chat {
-                id: c.user.to_string(),
-                session: c.session.to_string(),
+                id: c.user,
+                session: c.session,
             })
             .collect();
         let num = contacts.len() as i32;
@@ -304,8 +304,8 @@ impl ContactList {
         let user = contacts
             .iter()
             .map(|c| Chat {
-                id: c.user.to_string(),
-                session: c.session.to_string(),
+                id: c.user,
+                session: c.session,
             })
             .collect();
         Ok(Self { num, user })
@@ -321,8 +321,8 @@ impl ContactList {
         let user = contacts
             .iter()
             .map(|c| Chat {
-                id: c.user.to_string(),
-                session: c.session.to_string(),
+                id: c.user,
+                session: c.session,
             })
             .collect();
         Ok(Self { num, user })

@@ -1,6 +1,5 @@
 use super::*;
 use entity::{message, prelude::Message as MessageEntity};
-use std::str::FromStr;
 
 #[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -18,32 +17,24 @@ pub struct MsgPost {
     /// 在消息的值为图片或文件时, 消息内容存储消息的文件名, 即需要先上传文件再发送消息
     pub content: Option<String>,
     /// 引用消息的 UUID
-    pub cite: Option<String>,
+    pub cite: Option<Uuid>,
     /// 消息的文件 UUID
-    pub file: Option<String>,
+    pub file: Option<Uuid>,
 }
 
 impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
     type Error = AppError;
     fn try_from(value: (MsgPost, Uuid, Uuid)) -> Result<Self, Self::Error> {
-        let file = match value
+        let file = value
             .0
             .file
-            .map(|s| Uuid::from_str(&s).map_err(|e| AppError::BadRequest(format!("{}", e))))
-        {
-            Some(Ok(uuid)) => Some(uuid),
-            Some(Err(e)) => return Err(e),
-            None => None,
-        };
-        let cite = match value
+            .map(|u| ActiveValue::set(Some(u)))
+            .unwrap_or(ActiveValue::not_set());
+        let cite = value
             .0
             .cite
-            .map(|s| Uuid::from_str(&s).map_err(|e| AppError::BadRequest(format!("{}", e))))
-        {
-            Some(Ok(uuid)) => Some(uuid),
-            Some(Err(e)) => return Err(e),
-            None => None,
-        };
+            .map(|u| ActiveValue::set(Some(u)))
+            .unwrap_or(ActiveValue::not_set());
         Ok(message::ActiveModel {
             id: ActiveValue::not_set(),
             created_at: ActiveValue::not_set(),
@@ -52,8 +43,8 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
             session: ActiveValue::set(value.2),
             content: ActiveValue::set(value.0.content),
             typ: ActiveValue::set(value.0.typ),
-            file: ActiveValue::set(file),
-            cite: ActiveValue::set(cite),
+            file,
+            cite,
         })
     }
 }
@@ -62,36 +53,36 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct Msg {
     /// 消息 UUID
-    id: String,
+    id: Uuid,
     /// 创建时间戳, UTC 毫秒
     created_at: i64,
     /// 修改时间戳, UTC 毫秒
     edited_at: Option<i64>,
     /// 发送者 UUID
-    sender: Option<String>,
+    sender: Option<Uuid>,
     /// 引用消息的 UUID
-    cite: Option<String>,
+    cite: Option<Uuid>,
     /// 消息类型
     typ: i32,
     /// 消息内容
     content: Option<String>,
     /// 文件 UUID
-    file: Option<String>,
+    file: Option<Uuid>,
 }
 
 impl From<message::Model> for Msg {
     fn from(value: message::Model) -> Self {
         Msg {
-            id: value.id.to_string(),
+            id: value.id,
             created_at: value.created_at.and_utc().timestamp_millis(),
             edited_at: value
                 .edited_at
                 .and_then(|t| Some(t.and_utc().timestamp_millis())),
             typ: value.typ,
             content: value.content,
-            file: value.file.map(|f| f.to_string()),
-            sender: value.sender.map(|s| s.to_string()),
-            cite: value.cite.map(|c| c.to_string()),
+            file: value.file,
+            sender: value.sender,
+            cite: value.cite,
         }
     }
 }
@@ -108,7 +99,7 @@ pub struct MsgRes {
     /// | 2 | 文件 |
     pub typ: i32,
     /// 消息 UUID
-    pub id: String,
+    pub id: Uuid,
     /// UTC 毫秒时间戳
     pub created_at: i64,
 }
@@ -117,7 +108,7 @@ impl From<message::Model> for MsgRes {
     fn from(value: message::Model) -> Self {
         Self {
             typ: value.typ,
-            id: value.id.to_string(),
+            id: value.id,
             created_at: value.created_at.and_utc().timestamp_millis(),
         }
     }

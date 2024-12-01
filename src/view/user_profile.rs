@@ -7,7 +7,7 @@ use utility::{good_email, good_phone};
 #[derive(Clone, PartialEq, Serialize, Debug)]
 pub struct UserProfile {
     /// 主键
-    pub id: String,
+    pub id: Uuid,
     /// 用户名
     pub name: String,
     /// 别名
@@ -23,7 +23,7 @@ pub struct UserProfile {
     /// 个性简介
     pub bio: String,
     /// 头像
-    pub avatar: String,
+    pub avatar: Uuid,
     /// 创建时间
     ///
     /// UTC 毫秒时间戳
@@ -40,7 +40,7 @@ impl From<user::Model> for UserProfile {
             email: user.email,
             phone: user.phone,
             created_at: user.created_at.and_utc().timestamp_millis(),
-            avatar: user.avatar.unwrap_or_default().to_string(),
+            avatar: user.avatar.unwrap_or_default(),
             bio: user.bio.unwrap_or_default(),
             link: user.link.unwrap_or_default(),
         }
@@ -72,13 +72,13 @@ mod test {
         assert_eq!(
             UserProfile::from(user),
             UserProfile {
-                id: "264107cf-8559-41b0-a8fe-074531695bf6".to_string(),
+                id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),
                 name: "test".to_string(),
                 email: "adamanteye@example.com".to_string(),
                 phone: "1234567890".to_string(),
                 created_at: created_at.and_utc().timestamp_millis(),
                 gender: 0,
-                avatar: uuid::Uuid::default().to_string(),
+                avatar: uuid::Uuid::default(),
                 alias: String::default(),
                 bio: String::default(),
                 link: String::default(),

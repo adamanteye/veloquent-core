@@ -5,7 +5,7 @@ use entity::{prelude::User, user};
 #[derive(Serialize, Debug)]
 pub struct UserList {
     /// 用户主键列表
-    pub users: Vec<String>,
+    pub users: Vec<Uuid>,
 }
 
 /// 各条件之间用与连接
@@ -47,7 +47,7 @@ impl UserList {
             .await?;
 
         Ok(Self {
-            users: users.into_iter().map(|u| u.id.to_string()).collect(),
+            users: users.into_iter().map(|u| u.id).collect(),
         })
     }
 }

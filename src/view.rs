@@ -18,8 +18,8 @@ pub use axum::{
 pub use axum_extra::protobuf::Protobuf;
 pub use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseBackend::Postgres, DatabaseConnection, DeleteResult,
-    EntityTrait, FromQueryResult, JoinType, QueryFilter, QuerySelect, QueryTrait, RelationTrait,
-    Statement,
+    EntityTrait, FromQueryResult, JoinType, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
+    QueryTrait, RelationTrait, Statement,
 };
 pub use sea_query::{Alias, Condition};
 pub use serde::{Deserialize, Serialize};
@@ -164,7 +164,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/msg/session/:id",
-            post(message::send_msg_handler).route_layer(auth.clone()),
+            post(message::send_msg_handler)
+                .get(history::get_history_handler)
+                .route_layer(auth.clone()),
         )
         .route(
             "/upload/avatar",

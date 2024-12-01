@@ -29,7 +29,7 @@ use utoipa::OpenApi;
             download::Resource,
             contact::ContactList, contact::Chat,
             message::MsgPost, message::MsgRes, message::Msg,
-            history::History, history::HistoryRequest
+            history::History
         )
     ),
     tags(

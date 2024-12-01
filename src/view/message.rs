@@ -1,5 +1,5 @@
 use super::*;
-use entity::{message, prelude::Message as MessageEntity};
+use entity::{message, prelude::Message};
 
 #[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -49,7 +49,7 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 /// 消息
 pub struct Msg {
@@ -137,7 +137,7 @@ pub async fn get_msg_handler(
     payload: JWTPayload,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Msg>, AppError> {
-    let msg: message::Model = MessageEntity::find_by_id(id)
+    let msg: message::Model = Message::find_by_id(id)
         .one(&state.conn)
         .await?
         .ok_or(AppError::NotFound(format!("cannot find message [{}]", id)))?;
@@ -166,8 +166,8 @@ pub async fn send_msg_handler(
     Json(msg): Json<MsgPost>,
 ) -> Result<Json<MsgRes>, AppError> {
     let msg: message::ActiveModel = (msg, payload.id, session).try_into()?;
-    let res = MessageEntity::insert(msg).exec(&state.conn).await?;
-    let msg = MessageEntity::find_by_id(res.last_insert_id)
+    let res = Message::insert(msg).exec(&state.conn).await?;
+    let msg = Message::find_by_id(res.last_insert_id)
         .one(&state.conn)
         .await?
         .ok_or(AppError::Server(anyhow::anyhow!("cannot store message")))?;

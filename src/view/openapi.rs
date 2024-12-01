@@ -15,7 +15,7 @@ use utoipa::OpenApi;
         contact::get_pending_contacts_handler, contact::get_new_contacts_handler,
         contact::delete_contact_handler,
         contact::accept_contact_handler, contact::reject_contact_handler,
-        message::send_msg_handler,
+        message::send_msg_handler, message::get_msg_handler,
         avatar::upload_avatar_handler,
         download::download_handler,
     ),
@@ -28,7 +28,7 @@ use utoipa::OpenApi;
             user_find::UserList,
             download::Resource,
             contact::ContactList, contact::Chat,
-            message::MsgPost, message::MsgRes,
+            message::MsgPost, message::MsgRes, message::Msg,
             history::History, history::HistoryRequest
         )
     ),

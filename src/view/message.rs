@@ -51,6 +51,7 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
 
 #[derive(Serialize)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
+/// 消息
 pub struct Msg {
     /// 消息 UUID
     id: Uuid,
@@ -89,6 +90,9 @@ impl From<message::Model> for Msg {
 
 #[derive(Serialize)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
+/// 消息响应体
+///
+/// 成功发送消息后, 服务器返回的消息
 pub struct MsgRes {
     /// 指示消息类型
     ///
@@ -112,6 +116,32 @@ impl From<message::Model> for MsgRes {
             created_at: value.created_at.and_utc().timestamp_millis(),
         }
     }
+}
+
+/// 获取单条消息
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    get,
+    path = "/msg/{id}",
+    params(
+        ("id" = String, Path, description = "消息的唯一主键")
+    ),
+    responses(
+        (status = 200, description = "获取成功", body = Msg),
+    ),
+    tag = "msg"
+))]
+#[instrument(skip(state))]
+pub async fn get_msg_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Msg>, AppError> {
+    let msg: message::Model = MessageEntity::find_by_id(id)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("cannot find message [{}]", id)))?;
+    Ok(Json(msg.into()))
 }
 
 /// 发送新消息

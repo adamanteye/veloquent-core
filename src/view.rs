@@ -142,7 +142,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/contact/new",
-            post(contact::get_new_contacts_handler).route_layer(auth.clone()),
+            get(contact::get_new_contacts_handler).route_layer(auth.clone()),
         )
         .route(
             "/contact/new/:id",

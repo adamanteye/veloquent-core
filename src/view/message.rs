@@ -124,7 +124,7 @@ utoipa::path(
     get,
     path = "/msg/{id}",
     params(
-        ("id" = String, Path, description = "消息的唯一主键")
+        ("id" = Uuid, Path, description = "消息的唯一主键")
     ),
     responses(
         (status = 200, description = "获取成功", body = Msg),
@@ -150,9 +150,9 @@ utoipa::path(
     post,
     path = "/msg/session/{id}",
     params(
-        ("id" = String, Path, description = "会话的唯一主键")
+        ("id" = Uuid, Path, description = "会话的唯一主键")
     ),
-    request_body = MessagePost,
+    request_body = MsgPost,
     responses(
         (status = 200, description = "发送成功, 服务器成功存储", body = MessageResponse),
     ),

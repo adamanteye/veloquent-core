@@ -2,6 +2,7 @@ use super::message::Msg;
 use super::*;
 use entity::{message, prelude::Message};
 
+/// 聊天记录
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 #[derive(Serialize, Debug)]
 pub struct History {
@@ -68,7 +69,10 @@ impl History {
 utoipa::path(
     get,
     path = "/msg/session/{id}",
-    params(HistoryRequest),
+    params(
+        ("id" = Uuid, Path, description = "会话的唯一主键"),
+        HistoryRequest
+    ),
     responses(
         (status = 200, description = "获取成功", body = History),
     ),

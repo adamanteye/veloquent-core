@@ -2,10 +2,8 @@ use super::*;
 use entity::prelude::User;
 
 /// 删除用户自己
-
 #[cfg_attr(feature = "dev", utoipa::path(delete, path = "/user/profile", responses((status = 204, description = "删除成功")), tag = "user"))]
 #[instrument(skip(state))]
-
 pub async fn delete_user_handler(
     State(state): State<AppState>,
     payload: JWTPayload,

@@ -154,7 +154,7 @@ utoipa::path(
     ),
     request_body = MsgPost,
     responses(
-        (status = 200, description = "发送成功, 服务器成功存储", body = MessageResponse),
+        (status = 200, description = "发送成功, 服务器成功存储", body = MsgRes),
     ),
     tag = "msg"
 ))]

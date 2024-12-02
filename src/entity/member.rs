@@ -3,31 +3,29 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "group")]
+#[sea_orm(table_name = "member")]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
-    pub id: Uuid,
-    pub created_at: DateTime,
-    pub owner: Uuid,
-    pub session: Uuid,
-    pub name: Option<String>,
+    #[sea_orm(primary_key)]
+    pub id: i32,
+    pub created_at: Option<DateTime>,
+    pub user: Uuid,
+    pub group: Uuid,
+    pub permission: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::member::Entity")]
-    Member,
     #[sea_orm(
-        belongs_to = "super::session::Entity",
-        from = "Column::Session",
-        to = "super::session::Column::Id",
+        belongs_to = "super::group::Entity",
+        from = "Column::Group",
+        to = "super::group::Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    Session,
+    Group,
     #[sea_orm(
         belongs_to = "super::user::Entity",
-        from = "Column::Owner",
+        from = "Column::User",
         to = "super::user::Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
@@ -35,15 +33,9 @@ pub enum Relation {
     User,
 }
 
-impl Related<super::member::Entity> for Entity {
+impl Related<super::group::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Member.def()
-    }
-}
-
-impl Related<super::session::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Session.def()
+        Relation::Group.def()
     }
 }
 

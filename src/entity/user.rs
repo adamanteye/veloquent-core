@@ -29,6 +29,8 @@ pub enum Relation {
     Feed,
     #[sea_orm(has_many = "super::group::Entity")]
     Group,
+    #[sea_orm(has_many = "super::member::Entity")]
+    Member,
     #[sea_orm(has_many = "super::message::Entity")]
     Message,
     #[sea_orm(
@@ -50,6 +52,12 @@ impl Related<super::feed::Entity> for Entity {
 impl Related<super::group::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Group.def()
+    }
+}
+
+impl Related<super::member::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Member.def()
     }
 }
 

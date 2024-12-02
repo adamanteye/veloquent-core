@@ -5,6 +5,7 @@ pub mod prelude;
 pub mod contact;
 pub mod feed;
 pub mod group;
+pub mod member;
 pub mod message;
 pub mod session;
 pub mod upload;

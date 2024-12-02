@@ -3,6 +3,7 @@
 pub use super::contact::Entity as Contact;
 pub use super::feed::Entity as Feed;
 pub use super::group::Entity as Group;
+pub use super::member::Entity as Member;
 pub use super::message::Entity as Message;
 pub use super::session::Entity as Session;
 pub use super::upload::Entity as Upload;

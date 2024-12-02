@@ -41,6 +41,7 @@ mod avatar;
 mod contact;
 mod download;
 mod feed;
+mod group;
 mod history;
 mod login;
 mod message;
@@ -168,6 +169,14 @@ pub fn router(state: AppState) -> Router {
             post(message::send_msg_handler)
                 .get(history::get_history_handler)
                 .route_layer(auth.clone()),
+        )
+        .route(
+            "/group/:id",
+            get(group::get_group_handler).route_layer(auth.clone()),
+        )
+        .route(
+            "/group/new",
+            post(group::create_group_handler).route_layer(auth.clone()),
         )
         .route(
             "/upload/avatar",

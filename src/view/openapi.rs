@@ -16,6 +16,7 @@ use utoipa::OpenApi;
         contact::delete_contact_handler,
         contact::accept_contact_handler, contact::reject_contact_handler,
         message::send_msg_handler, message::get_msg_handler,
+        group::get_group_handler, group::create_group_handler,
         history::get_history_handler,
         avatar::upload_avatar_handler,
         download::download_handler,
@@ -30,6 +31,7 @@ use utoipa::OpenApi;
             download::Resource,
             contact::ContactList, contact::Chat,
             message::MsgPost, message::MsgRes, message::Msg,
+            group::GroupPost, group::GroupProfile, 
             history::History
         )
     ),
@@ -37,6 +39,7 @@ use utoipa::OpenApi;
         (name = "user", description = "用户管理"),
         (name = "contact", description = "好友管理"),
         (name = "msg", description = "消息发送"),
+        (name = "group", description = "群聊管理"),
         (name = "static", description = "静态资源")
     )
 )]

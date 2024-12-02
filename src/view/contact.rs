@@ -262,7 +262,7 @@ pub struct ContactList {
     /// 好友(申请)数量
     pub num: i32,
     /// 好友(申请者)的 UUID
-    pub user: Vec<Chat>,
+    pub items: Vec<Chat>,
 }
 
 #[derive(Serialize, Debug)]
@@ -286,7 +286,7 @@ impl ContactList {
     async fn query_contact(user: user::Model, db: &DatabaseConnection) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
                     "SELECT a.ref_user AS user, a.session FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
-        let user = contacts
+        let items = contacts
             .iter()
             .map(|c| Chat {
                 id: c.user,
@@ -294,7 +294,7 @@ impl ContactList {
             })
             .collect();
         let num = contacts.len() as i32;
-        Ok(Self { num, user })
+        Ok(Self { num, items })
     }
 
     async fn query_new_contact(
@@ -304,14 +304,14 @@ impl ContactList {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
             "SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
         let num = contacts.len() as i32;
-        let user = contacts
+        let items = contacts
             .iter()
             .map(|c| Chat {
                 id: c.user,
                 session: c.session,
             })
             .collect();
-        Ok(Self { num, user })
+        Ok(Self { num, items })
     }
 
     async fn query_pending_contact(
@@ -321,14 +321,14 @@ impl ContactList {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
                     "SELECT contact.ref_user AS user, contact.session FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
         let num = contacts.len() as i32;
-        let user = contacts
+        let items = contacts
             .iter()
             .map(|c| Chat {
                 id: c.user,
                 session: c.session,
             })
             .collect();
-        Ok(Self { num, user })
+        Ok(Self { num, items })
     }
 }
 

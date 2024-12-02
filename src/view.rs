@@ -40,6 +40,7 @@ use utoipa_swagger_ui::SwaggerUi;
 mod avatar;
 mod contact;
 mod download;
+mod feed;
 mod history;
 mod login;
 mod message;

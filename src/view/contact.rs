@@ -132,6 +132,7 @@ pub async fn reject_contact_handler(
     Contact::delete(c).exec(&state.conn).await?;
     Ok(StatusCode::OK.into_response())
 }
+
 /// 删除好友
 #[cfg_attr(feature = "dev",
 utoipa::path(delete, path = "/contact/delete",
@@ -260,14 +261,16 @@ pub async fn accept_contact_handler(
 pub struct ContactList {
     /// 好友(申请)数量
     pub num: i32,
-    /// 好友(申请者)的UUID
+    /// 好友(申请者)的 UUID
     pub user: Vec<Chat>,
 }
 
 #[derive(Serialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct Chat {
-    /// 好友(申请者)的UUID
+    /// 好友(申请者)的 UUID
+    ///
+    /// 在通知中, 也可以表示群聊的 UUID
     pub id: Uuid,
     /// 会话
     pub session: Uuid,

@@ -1,5 +1,8 @@
 use super::*;
-use entity::{message, prelude::Message};
+use entity::{
+    feed, message,
+    prelude::{Feed, Message},
+};
 
 #[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -59,6 +62,8 @@ pub struct Msg {
     created_at: i64,
     /// 修改时间戳, UTC 毫秒
     edited_at: Option<i64>,
+    /// 阅读时间戳, UTC 毫秒
+    read_at: Option<i64>,
     /// 发送者 UUID
     sender: Option<Uuid>,
     /// 引用消息的 UUID
@@ -71,19 +76,21 @@ pub struct Msg {
     file: Option<Uuid>,
 }
 
-impl From<message::Model> for Msg {
-    fn from(value: message::Model) -> Self {
+impl From<(message::Model, Option<i64>)> for Msg {
+    fn from(value: (message::Model, Option<i64>)) -> Self {
         Msg {
-            id: value.id,
-            created_at: value.created_at.and_utc().timestamp_millis(),
+            id: value.0.id,
+            created_at: value.0.created_at.and_utc().timestamp_millis(),
             edited_at: value
+                .0
                 .edited_at
                 .and_then(|t| Some(t.and_utc().timestamp_millis())),
-            typ: value.typ,
-            content: value.content,
-            file: value.file,
-            sender: value.sender,
-            cite: value.cite,
+            typ: value.0.typ,
+            content: value.0.content,
+            file: value.0.file,
+            sender: value.0.sender,
+            cite: value.0.cite,
+            read_at: value.1,
         }
     }
 }
@@ -141,7 +148,14 @@ pub async fn get_msg_handler(
         .one(&state.conn)
         .await?
         .ok_or(AppError::NotFound(format!("cannot find message [{}]", id)))?;
-    Ok(Json(msg.into()))
+    let read_at = Feed::find()
+        .filter(feed::Column::Message.eq(id))
+        .filter(feed::Column::User.eq(payload.id))
+        .one(&state.conn)
+        .await?
+        .map(|f| f.read_at.map(|t| t.and_utc().timestamp_millis()))
+        .unwrap_or(None);
+    Ok(Json((msg, read_at).into()))
 }
 
 /// 发送新消息

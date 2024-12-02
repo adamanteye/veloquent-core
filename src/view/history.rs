@@ -1,6 +1,9 @@
 use super::message::Msg;
 use super::*;
-use entity::{message, prelude::Message};
+use entity::{
+    feed, message,
+    prelude::{Feed, Message},
+};
 
 /// 聊天记录
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -36,6 +39,7 @@ impl History {
         req: HistoryRequest,
         conn: &DatabaseConnection,
         session: Uuid,
+        user: Uuid,
     ) -> Result<Self, AppError> {
         let start = req.start.unwrap_or(0);
         let end = req.end.unwrap_or(50);
@@ -49,7 +53,18 @@ impl History {
             .all(conn)
             .await?
             .split_off(start as usize);
-        let msgs: Vec<Msg> = msgs.into_iter().map(Msg::from).collect();
+        let mut read_ats = Vec::new();
+        for msg in &msgs {
+            let read_at = Feed::find()
+                .filter(feed::Column::Message.eq(msg.id))
+                .filter(feed::Column::User.eq(user))
+                .one(conn)
+                .await?
+                .map(|f| f.read_at.map(|t| t.and_utc().timestamp_millis()))
+                .unwrap_or(None);
+            read_ats.push(read_at);
+        }
+        let msgs: Vec<Msg> = msgs.into_iter().zip(read_ats).map(Msg::from).collect();
         let end = start + msgs.len() as u64;
         let cnt = Message::find()
             .filter(message::Column::Session.eq(session))
@@ -85,7 +100,7 @@ pub async fn get_history_handler(
     Query(params): Query<HistoryRequest>,
     Path(session): Path<Uuid>,
 ) -> Result<Json<History>, AppError> {
-    let history = History::find_by_session(params, &state.conn, session).await?;
+    let history = History::find_by_session(params, &state.conn, session, payload.id).await?;
     event!(Level::DEBUG, "get history");
     Ok(Json(history))
 }

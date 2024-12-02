@@ -282,7 +282,7 @@ struct UserUuid {
 impl ContactList {
     async fn query_contact(user: user::Model, db: &DatabaseConnection) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT a.user, a.session FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
+                    "SELECT a.ref_user, a.session FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
         let user = contacts
             .iter()
             .map(|c| Chat {

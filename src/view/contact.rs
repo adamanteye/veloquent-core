@@ -347,6 +347,8 @@ pub async fn notify_new_contacts(
 }
 
 /// 获取待通过好友列表
+///
+/// 即希望添加当前用户作为好友的用户列表
 #[cfg_attr(feature = "dev",
 utoipa::path(get, path = "/contact/new",
     responses(

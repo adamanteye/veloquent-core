@@ -16,6 +16,7 @@ use utoipa::OpenApi;
         contact::delete_contact_handler,
         contact::accept_contact_handler, contact::reject_contact_handler,
         message::send_msg_handler, message::get_msg_handler,
+        history::get_history_handler,
         avatar::upload_avatar_handler,
         download::download_handler,
     ),

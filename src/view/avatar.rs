@@ -1,4 +1,5 @@
 use super::*;
+use download::Resource;
 use entity::{
     prelude::{Upload, User},
     upload, user,
@@ -21,7 +22,7 @@ utoipa::path(
 pub async fn upload_avatar_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
-    Protobuf(avatar): Protobuf<super::download::Resource>,
+    Protobuf(avatar): Protobuf<Resource>,
 ) -> Result<Response, AppError> {
     if avatar.typ.is_empty() {
         return Err(AppError::BadRequest("empty type".to_string()));
@@ -32,17 +33,26 @@ pub async fn upload_avatar_handler(
             avatar.typ
         )));
     }
-    let data = avatar.data;
+
+    let user = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user: [{}]",
+        payload.id
+    )))?;
+    let mut user: user::ActiveModel = user.into();
+    let uuid = save_file(&avatar, &state.conn).await?;
+    user.avatar = ActiveValue::set(Some(uuid));
+    User::update(user).exec(&state.conn).await?;
+    event!(Level::INFO, "update user:avatar [{}:{}]", payload.id, uuid);
+    Ok(StatusCode::CREATED.into_response())
+}
+
+async fn save_file(r: &Resource, c: &DatabaseConnection) -> Result<Uuid, AppError> {
+    let data = &r.data;
     let uuid = bytes_as_uuid(&data);
     if uuid.eq(&UUID_NIL) {
         Err(AppError::BadRequest("empty content".to_string()))
     } else {
-        let user = User::find_by_id(payload.id).one(&state.conn).await?;
-        let user = user.ok_or(AppError::NotFound(format!(
-            "cannot find user: [{}]",
-            payload.id
-        )))?;
-        let mut user: user::ActiveModel = user.into();
         let file = tokio::fs::File::create_new(
             std::path::Path::new(&UPLOAD_DIR.get().unwrap()).join(uuid.to_string()),
         )
@@ -53,29 +63,26 @@ pub async fn upload_avatar_handler(
                 event!(Level::INFO, "write file: [{}]", uuid);
                 let file = upload::ActiveModel {
                     uuid: ActiveValue::set(uuid),
-                    typ: ActiveValue::set(avatar.typ),
+                    typ: ActiveValue::set(r.typ.clone()),
                 };
-                Upload::insert(file).exec(&state.conn).await?;
+                Upload::insert(file).exec(c).await?;
             }
             Err(e) => {
-                event!(Level::DEBUG, "create file error: [{}]", e);
-                let file = Upload::find_by_id(uuid).one(&state.conn).await?;
+                event!(Level::DEBUG, "create file error: [{}]", e); // 文件已经存在
+                let file = Upload::find_by_id(uuid).one(c).await?;
                 match file {
-                    Some(_) => {}
+                    Some(_) => {} // 数据库当中有记录
                     None => {
                         event!(Level::ERROR, "cannot from database find file: [{}]", uuid);
                         let file = upload::ActiveModel {
                             uuid: ActiveValue::set(uuid),
-                            typ: ActiveValue::set(avatar.typ),
+                            typ: ActiveValue::set(r.typ.clone()),
                         };
-                        Upload::insert(file).exec(&state.conn).await?;
+                        Upload::insert(file).exec(c).await?;
                     }
                 }
             }
         };
-        user.avatar = ActiveValue::set(Some(uuid));
-        User::update(user).exec(&state.conn).await?;
-        event!(Level::INFO, "update user:avatar [{}:{}]", payload.id, uuid);
-        Ok(StatusCode::CREATED.into_response())
+        Ok(uuid)
     }
 }

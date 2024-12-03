@@ -76,7 +76,9 @@ pub struct Msg {
 #[derive(Serialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct ReadAt {
+    /// 阅读者 UUID
     reader: Uuid,
+    /// 阅读时间戳, UTC 毫秒
     read_at: i64,
 }
 

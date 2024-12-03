@@ -30,7 +30,7 @@ use utoipa::OpenApi;
             user_find::UserList,
             download::Resource, avatar::UploadRes,
             contact::ContactList, contact::Chat,
-            message::MsgPost, message::MsgRes, message::Msg,
+            message::MsgPost, message::MsgRes, message::Msg, message::ReadAt,
             group::GroupPost, group::GroupProfile, 
             history::History
         )

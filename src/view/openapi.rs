@@ -18,7 +18,7 @@ use utoipa::OpenApi;
         message::send_msg_handler, message::get_msg_handler,
         group::get_group_handler, group::create_group_handler,
         history::get_history_handler,
-        avatar::upload_avatar_handler,
+        avatar::upload_handler, avatar::upload_avatar_handler,
         download::download_handler,
     ),
     components(
@@ -28,7 +28,7 @@ use utoipa::OpenApi;
             user_profile::UserProfile, user_profile::UserProfileEdition,
             login::LoginRequest, login::LoginResponse,
             user_find::UserList,
-            download::Resource,
+            download::Resource, avatar::UploadRes,
             contact::ContactList, contact::Chat,
             message::MsgPost, message::MsgRes, message::Msg,
             group::GroupPost, group::GroupProfile, 

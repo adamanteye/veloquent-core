@@ -33,7 +33,6 @@ pub async fn upload_avatar_handler(
             avatar.typ
         )));
     }
-
     let user = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user: [{}]",
@@ -45,6 +44,39 @@ pub async fn upload_avatar_handler(
     User::update(user).exec(&state.conn).await?;
     event!(Level::INFO, "update user:avatar [{}:{}]", payload.id, uuid);
     Ok(StatusCode::CREATED.into_response())
+}
+
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(Serialize)]
+pub struct UploadRes {
+    /// 扩展名或文件类型
+    typ: String,
+    /// 数据库中的键值
+    uuid: Uuid,
+}
+
+/// 通用上传
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    post,
+    path = "/upload",
+    request_body = Resource,
+    responses(
+        (status = 201, description = "上传成功")
+    ),
+    tag = "static"
+))]
+#[instrument(skip(state, avatar))]
+pub async fn upload_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Protobuf(avatar): Protobuf<Resource>,
+) -> Result<Json<UploadRes>, AppError> {
+    let uuid = save_file(&avatar, &state.conn).await?;
+    Ok(Json(UploadRes {
+        typ: avatar.typ,
+        uuid,
+    }))
 }
 
 async fn save_file(r: &Resource, c: &DatabaseConnection) -> Result<Uuid, AppError> {

@@ -1,8 +1,5 @@
 use super::*;
-use entity::{
-    feed, message,
-    prelude::{Feed, Message},
-};
+use entity::{message, prelude::Message};
 
 #[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -63,7 +60,7 @@ pub struct Msg {
     /// 修改时间戳, UTC 毫秒
     edited_at: Option<i64>,
     /// 阅读时间戳, UTC 毫秒
-    read_at: Option<i64>,
+    read_ats: Vec<ReadAt>,
     /// 发送者 UUID
     sender: Option<Uuid>,
     /// 引用消息的 UUID
@@ -76,8 +73,15 @@ pub struct Msg {
     file: Option<Uuid>,
 }
 
-impl From<(message::Model, Option<i64>)> for Msg {
-    fn from(value: (message::Model, Option<i64>)) -> Self {
+#[derive(Serialize, Debug)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+pub struct ReadAt {
+    reader: Uuid,
+    read_at: i64,
+}
+
+impl From<(message::Model, Vec<ReadAt>)> for Msg {
+    fn from(value: (message::Model, Vec<ReadAt>)) -> Self {
         Msg {
             id: value.0.id,
             created_at: value.0.created_at.and_utc().timestamp_millis(),
@@ -90,7 +94,7 @@ impl From<(message::Model, Option<i64>)> for Msg {
             file: value.0.file,
             sender: value.0.sender,
             cite: value.0.cite,
-            read_at: value.1,
+            read_ats: value.1,
         }
     }
 }
@@ -125,6 +129,39 @@ impl From<message::Model> for MsgRes {
     }
 }
 
+#[derive(Debug, FromQueryResult)]
+pub(super) struct Reader {
+    reader: Uuid,
+    read_at: Option<chrono::NaiveDateTime>,
+}
+
+impl Reader {
+    pub(super) async fn fetch_from_db(
+        id: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<Vec<Self>, AppError> {
+        Ok(Self::find_by_statement(Statement::from_sql_and_values(
+            Postgres,
+            "SELECT feed.user AS reader, fead.read_at FROM message INNER JOIN feed ON message.id = feed.message WHERE message.id = $1",
+            [id.into()],
+        ))
+        .all(conn)
+        .await?)
+    }
+}
+
+impl From<Reader> for ReadAt {
+    fn from(value: Reader) -> Self {
+        Self {
+            reader: value.reader,
+            read_at: value
+                .read_at
+                .map(|t| t.and_utc().timestamp_millis())
+                .unwrap_or(0),
+        }
+    }
+}
+
 /// 获取单条消息
 #[cfg_attr(feature = "dev",
 utoipa::path(
@@ -148,14 +185,12 @@ pub async fn get_msg_handler(
         .one(&state.conn)
         .await?
         .ok_or(AppError::NotFound(format!("cannot find message [{}]", id)))?;
-    let read_at = Feed::find()
-        .filter(feed::Column::Message.eq(id))
-        .filter(feed::Column::User.eq(payload.id))
-        .one(&state.conn)
+    let read_ats: Vec<ReadAt> = Reader::fetch_from_db(id, &state.conn)
         .await?
-        .map(|f| f.read_at.map(|t| t.and_utc().timestamp_millis()))
-        .unwrap_or(None);
-    Ok(Json((msg, read_at).into()))
+        .into_iter()
+        .map(ReadAt::from)
+        .collect();
+    Ok(Json((msg, read_ats).into()))
 }
 
 /// 发送新消息

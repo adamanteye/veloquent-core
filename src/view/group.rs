@@ -107,7 +107,7 @@ pub async fn create_group_handler(
 ) -> Result<Json<GroupProfile>, AppError> {
     let user = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user {}",
+        "cannot find user [{}]",
         payload.id
     )))?;
     let mut members = req.members;

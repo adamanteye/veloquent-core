@@ -153,7 +153,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/contact/delete/:id",
-            post(contact::reject_contact_handler)
+            put(contact::reject_contact_handler)
                 .delete(contact::delete_contact_handler)
                 .route_layer(auth.clone()),
         )

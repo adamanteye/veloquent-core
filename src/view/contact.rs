@@ -7,7 +7,9 @@ use entity::{
 
 /// 发起添加好友
 #[cfg_attr(feature = "dev",
-utoipa::path(post, path = "/contact/new",
+utoipa::path(
+    post,
+    path = "/contact/new",
     params(
         ("id" = Uuid, Path, description = "要添加的用户主键") ), responses(
         (status = 200, description = "发起成功")
@@ -89,7 +91,9 @@ pub async fn add_contact_handler(
 
 /// 拒绝好友申请
 #[cfg_attr(feature = "dev",
-utoipa::path(post, path = "/contact/delete",
+utoipa::path(
+    put,
+    path = "/contact/reject",
     params(
         ("id" = Uuid, Path, description = "要拒绝的用户主键") ), responses(
         (status = 200, description = "拒绝成功")
@@ -135,7 +139,9 @@ pub async fn reject_contact_handler(
 
 /// 删除好友
 #[cfg_attr(feature = "dev",
-utoipa::path(delete, path = "/contact/delete",
+utoipa::path(
+    delete,
+    path = "/contact/delete",
     params(
         ("id" = Uuid, Path, description = "要删除的用户主键") ), responses(
         (status = 204, description = "删除成功")
@@ -260,9 +266,9 @@ pub async fn accept_contact_handler(
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct ContactList {
     /// 好友(申请)数量
-    pub num: i32,
+    num: i32,
     /// 好友(申请者)的 UUID
-    pub items: Vec<Chat>,
+    items: Vec<Chat>,
 }
 
 #[derive(Serialize, Debug)]
@@ -271,29 +277,36 @@ pub struct Chat {
     /// 好友(申请者)的 UUID
     ///
     /// 在通知中, 也可以表示群聊的 UUID
-    pub id: Uuid,
+    id: Uuid,
     /// 会话
-    pub session: Uuid,
+    session: Uuid,
+    /// 分类
+    category: Option<String>,
 }
 
 #[derive(Debug, FromQueryResult)]
 struct UserUuid {
     user: Uuid,
     session: Uuid,
+    category: Option<String>,
+}
+
+impl From<UserUuid> for Chat {
+    fn from(u: UserUuid) -> Self {
+        Self {
+            id: u.user,
+            session: u.session,
+            category: u.category,
+        }
+    }
 }
 
 impl ContactList {
     async fn query_contact(user: user::Model, db: &DatabaseConnection) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT a.ref_user AS user, a.session FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
-        let items = contacts
-            .iter()
-            .map(|c| Chat {
-                id: c.user,
-                session: c.session,
-            })
-            .collect();
-        let num = contacts.len() as i32;
+                    "SELECT a.ref_user AS user, a.session, a.category FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
+        let items: Vec<Chat> = contacts.into_iter().map(UserUuid::into).collect();
+        let num = items.len() as i32;
         Ok(Self { num, items })
     }
 
@@ -302,15 +315,16 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-            "SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
-        let num = contacts.len() as i32;
-        let items = contacts
-            .iter()
-            .map(|c| Chat {
-                id: c.user,
-                session: c.session,
+            "SELECT contact.user, contact.session, contact.category FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
+        let items: Vec<Chat> = contacts
+            .into_iter()
+            .map(|c| {
+                let mut c: Chat = c.into();
+                c.category = None;
+                c
             })
             .collect();
+        let num = items.len() as i32;
         Ok(Self { num, items })
     }
 
@@ -319,15 +333,9 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT contact.ref_user AS user, contact.session FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
-        let num = contacts.len() as i32;
-        let items = contacts
-            .iter()
-            .map(|c| Chat {
-                id: c.user,
-                session: c.session,
-            })
-            .collect();
+                    "SELECT contact.ref_user AS user, contact.session, contact.category FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
+        let items: Vec<Chat> = contacts.into_iter().map(UserUuid::into).collect();
+        let num = items.len() as i32;
         Ok(Self { num, items })
     }
 }

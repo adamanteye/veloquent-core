@@ -183,6 +183,7 @@ pub async fn create_group_handler(
 utoipa::path(
     delete,
     path = "/group/{id}",
+    params(("id" = Uuid, Path, description = "群聊的唯一主键")),
     responses(
         (status = 204, description = "成功删除"),
     ),
@@ -217,4 +218,66 @@ pub async fn delete_group_handler(
     }
     event!(Level::INFO, "delete group [{}]", id);
     Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+#[cfg_attr(feature = "dev", derive(IntoParams))]
+#[derive(Deserialize, Debug)]
+pub(super) struct TransferGroupParams {
+    group: Uuid,
+    owner: Uuid,
+}
+
+/// 获取用户信息
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    put,
+    path = "/group/transfer",
+    params(TransferGroupParams),
+    responses(
+        (status = 200, description = "转让成功"),
+    ),
+    tag = "user"
+))]
+#[instrument(skip(state))]
+pub async fn transfer_group_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Query(params): Query<TransferGroupParams>,
+) -> Result<impl IntoResponse, AppError> {
+    let user = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user [{}]",
+        payload.id
+    )))?;
+    let _ = User::find_by_id(params.owner)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!(
+            "cannot find user [{}]",
+            params.owner
+        )))?;
+    let g = Group::find_by_id(params.group)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!(
+            "cannot find group [{}]",
+            params.group
+        )))?;
+    if g.owner != user.id {
+        return Err(AppError::Forbidden(
+            "only owner can transfer group".to_string(),
+        ));
+    }
+    if user.id == params.owner {
+        return Err(AppError::BadRequest("cannot transfer to self".to_string()));
+    }
+    let mut g = g.into_active_model();
+    g.owner = ActiveValue::set(params.owner);
+    event!(
+        Level::INFO,
+        "transfer group [{}] to [{}]",
+        params.group,
+        params.owner
+    );
+    Ok(StatusCode::OK.into_response())
 }

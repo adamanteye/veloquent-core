@@ -18,8 +18,8 @@ pub use axum::{
 pub use axum_extra::protobuf::Protobuf;
 pub use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseBackend::Postgres, DatabaseConnection, DeleteResult,
-    EntityTrait, FromQueryResult, JoinType, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
-    QueryTrait, RelationTrait, Statement,
+    EntityTrait, FromQueryResult, IntoActiveModel, JoinType, PaginatorTrait, QueryFilter,
+    QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
 };
 pub use sea_query::{Alias, Condition};
 pub use serde::{Deserialize, Serialize};
@@ -180,6 +180,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/group/list",
             get(group::list_group_handler).route_layer(auth.clone()),
+        )
+        .route(
+            "/group/transfer",
+            put(group::transfer_group_handler).route_layer(auth.clone()),
         )
         .route(
             "/upload",

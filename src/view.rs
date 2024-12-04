@@ -47,10 +47,7 @@ mod login;
 mod message;
 #[cfg(feature = "dev")]
 mod openapi;
-mod user_delete;
-mod user_find;
-mod user_profile;
-mod user_register;
+mod user;
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -122,16 +119,16 @@ pub fn router(state: AppState) -> Router {
 
     router
         .route("/login", post(login::login_handler))
-        .route("/register", post(user_register::register_handler))
+        .route("/register", post(user::register_handler))
         .route(
             "/user",
-            get(user_find::find_user_handler).route_layer(auth.clone()),
+            get(user::find_user_handler).route_layer(auth.clone()),
         )
         .route(
             "/user/profile",
-            get(user_profile::get_profile_handler)
-                .delete(user_delete::delete_user_handler)
-                .put(user_profile::update_profile_handler)
+            get(user::get_profile_handler)
+                .delete(user::delete_user_handler)
+                .put(user::update_profile_handler)
                 .route_layer(auth.clone()),
         )
         .route(

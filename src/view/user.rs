@@ -1,6 +1,99 @@
 use super::*;
 use entity::{prelude::User, user};
-use utility::{good_email, good_phone};
+use login::LoginResponse;
+use utility::{gen_hash_and_salt, good_email, good_phone};
+
+/// 用户创建请求体
+///
+/// 不提供该字段表示不进行设置或修改, 提供空字符串表示置为默认
+#[derive(Deserialize, Debug)]
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+pub struct RegisterProfile {
+    /// 用户名
+    pub name: String,
+    /// 别名
+    pub alias: Option<String>,
+    /// 电话号码
+    pub phone: String,
+    /// 性别
+    ///
+    /// | 数值 | 说明 |
+    /// | --- | --- |
+    /// | 0 | 未指定 |
+    /// | 1 | 女性 |
+    /// | 2 | 男性 |
+    pub gender: Option<i32>,
+    /// 个性简介
+    pub bio: Option<String>,
+    /// 个人链接
+    pub link: Option<String>,
+    /// 密码
+    pub password: String,
+    /// 邮件地址
+    pub email: String,
+}
+
+impl TryFrom<RegisterProfile> for user::ActiveModel {
+    type Error = AppError;
+    fn try_from(p: RegisterProfile) -> Result<Self, Self::Error> {
+        if !p.name.is_empty() && !p.password.is_empty() {
+            if p.gender.is_some_and(|g| g.is_negative()) {
+                Err(AppError::BadRequest("gender not valid".to_string()))
+            } else if !p.email.is_empty() && !good_email(&p.email) {
+                Err(AppError::BadRequest("invalid email".to_string()))
+            } else if !p.email.is_empty() && !good_phone(&p.phone) {
+                Err(AppError::BadRequest("invalid phone".to_string()))
+            } else {
+                let (hash, salt) = gen_hash_and_salt(&p.password)?;
+                Ok(user::ActiveModel {
+                    id: ActiveValue::not_set(),
+                    name: ActiveValue::Set(p.name),
+                    alias: ActiveValue::Set(p.alias),
+                    phone: ActiveValue::Set(p.phone),
+                    hash: ActiveValue::set(hash),
+                    salt: ActiveValue::set(salt),
+                    created_at: ActiveValue::not_set(),
+                    gender: ActiveValue::set(p.gender.unwrap_or_default()),
+                    email: ActiveValue::Set(p.email),
+                    bio: ActiveValue::Set(p.bio),
+                    avatar: ActiveValue::not_set(),
+                    link: ActiveValue::Set(p.link),
+                })
+            }
+        } else {
+            Err(AppError::BadRequest(
+                "name and password must be provided".to_string(),
+            ))
+        }
+    }
+}
+
+/// 注册新用户
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    post,
+    path = "/register",
+    request_body = RegisterProfile,
+    responses(
+        (status = 201, description = "注册成功", body = LoginResponse),
+    ),
+    tag = "user"
+))]
+#[instrument(skip(state))]
+pub async fn register_handler(
+    State(state): State<AppState>,
+    Json(profile): Json<RegisterProfile>,
+) -> Result<Response, AppError> {
+    let user = user::ActiveModel::try_from(profile)?;
+    let res = User::insert(user).exec(&state.conn).await?;
+    event!(Level::INFO, "create user {:?}", res);
+    let res: JWTPayload = res.last_insert_id.into();
+    Ok((
+        StatusCode::CREATED,
+        Json(LoginResponse { token: res.into() }),
+    )
+        .into_response())
+}
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -215,4 +308,95 @@ pub async fn update_profile_handler(
     User::update(user).exec(&state.conn).await?;
     event!(Level::INFO, "update user [{}]", payload.id);
     Ok(StatusCode::OK.into_response())
+}
+
+/// 删除用户自己
+#[cfg_attr(feature = "dev", utoipa::path(delete, path = "/user/profile", responses((status = 204, description = "删除成功")), tag = "user"))]
+#[instrument(skip(state))]
+pub async fn delete_user_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+) -> Result<Response, AppError> {
+    let res: DeleteResult = User::delete_by_id(payload.id).exec(&state.conn).await?;
+    if res.rows_affected == 0 {
+        return Err(AppError::NotFound(format!(
+            "cannot delete user [{}]",
+            payload.id
+        )));
+    }
+    event!(Level::INFO, "delete user [{}]", payload.id);
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(Serialize, Debug)]
+pub struct UserList {
+    /// 用户主键列表
+    pub users: Vec<Uuid>,
+}
+
+/// 各条件之间用与连接
+///
+/// 没有提供字段的条件不参与查询
+#[cfg_attr(feature = "dev", derive(IntoParams))]
+#[derive(Deserialize, Debug)]
+pub struct UserFindRequest {
+    /// 用户名
+    pub name: Option<String>,
+    /// 别名
+    pub alias: Option<String>,
+    /// 邮箱
+    pub email: Option<String>,
+    /// 电话
+    pub phone: Option<String>,
+}
+
+impl UserList {
+    pub async fn find(
+        params: UserFindRequest,
+        conn: &DatabaseConnection,
+    ) -> Result<Self, AppError> {
+        let users = User::find()
+            .filter(
+                Condition::all()
+                    .add(user::Column::Name.like(format!("%{}%", params.name.unwrap_or_default())))
+                    .add(
+                        user::Column::Alias.like(format!("%{}%", params.alias.unwrap_or_default())),
+                    )
+                    .add(
+                        user::Column::Email.like(format!("%{}%", params.email.unwrap_or_default())),
+                    )
+                    .add(
+                        user::Column::Phone.like(format!("%{}%", params.phone.unwrap_or_default())),
+                    ),
+            )
+            .all(conn)
+            .await?;
+
+        Ok(Self {
+            users: users.into_iter().map(|u| u.id).collect(),
+        })
+    }
+}
+
+/// 查找用户
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    get,
+    path = "/user",
+    params(UserFindRequest),
+    responses(
+        (status = 200, description = "获取成功", body = UserList),
+    ),
+    tag = "user"
+))]
+#[instrument(skip(state, _payload))]
+pub async fn find_user_handler(
+    State(state): State<AppState>,
+    _payload: JWTPayload,
+    Query(params): Query<UserFindRequest>,
+) -> Result<Json<UserList>, AppError> {
+    let users = UserList::find(params, &state.conn).await?;
+    event!(Level::DEBUG, "conditional find users: [{:?}]", users);
+    Ok(Json(users))
 }

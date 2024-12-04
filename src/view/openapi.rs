@@ -7,10 +7,10 @@ use utoipa::OpenApi;
 #[openapi(
     paths(
         login::login_handler,
-        user_register::register_handler,
-        user_profile::get_profile_handler, user_profile::update_profile_handler,
-        user_delete::delete_user_handler,
-        user_find::find_user_handler,
+        user::register_handler,
+        user::get_profile_handler, user::update_profile_handler,
+        user::delete_user_handler,
+        user::find_user_handler,
         contact::add_contact_handler, contact::get_contacts_handler,
         contact::get_pending_contacts_handler, contact::get_new_contacts_handler,
         contact::delete_contact_handler,
@@ -25,10 +25,9 @@ use utoipa::OpenApi;
     components(
         schemas(
             error::AppErrorResponse,
-            user_register::RegisterProfile,
-            user_profile::UserProfile, user_profile::UserProfileEdition,
+            user::RegisterProfile, user::UserList,
+            user::UserProfile, user::UserProfileEdition,
             login::LoginRequest, login::LoginResponse,
-            user_find::UserList,
             download::Resource, avatar::UploadRes,
             contact::ContactList, contact::Chat,
             message::MsgPost, message::MsgRes, message::Msg, message::ReadAt,

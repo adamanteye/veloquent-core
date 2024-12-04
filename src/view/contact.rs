@@ -387,9 +387,17 @@ pub async fn get_new_contacts_handler(
     Ok(Json(data))
 }
 
+#[cfg_attr(feature = "dev", derive(IntoParams))]
+#[derive(Deserialize, Debug)]
+pub(super) struct CategoryParams {
+    /// 好友分组
+    category: Option<String>,
+}
+
 /// 获取好友列表
 #[cfg_attr(feature = "dev",
 utoipa::path(get, path = "/contact/list",
+    params(CategoryParams),
     responses(
         (status = 200, description = "获取成功", body = ContactList)
     ),
@@ -399,13 +407,23 @@ utoipa::path(get, path = "/contact/list",
 pub async fn get_contacts_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
+    Query(params): Query<CategoryParams>,
 ) -> Result<Json<ContactList>, AppError> {
     let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
         payload.id
     )))?;
-    let data = ContactList::query_contact(user, &state.conn).await?;
+    let mut data = ContactList::query_contact(user, &state.conn).await?;
+    if let Some(category) = params.category {
+        let items = data
+            .items
+            .into_iter()
+            .filter(|c| c.category.as_deref() == Some(category.as_str()))
+            .collect();
+        data.items = items;
+        data.num = data.items.len() as i32;
+    }
     event!(
         Level::DEBUG,
         "get contact list [{:?}] of user [{}]",

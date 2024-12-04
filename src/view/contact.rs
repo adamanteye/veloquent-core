@@ -441,3 +441,33 @@ pub async fn get_pending_contacts_handler(
     );
     Ok(Json(data))
 }
+
+/// 获取好友分组列表
+#[cfg_attr(feature = "dev",
+utoipa::path(get, path = "/contact/category",
+    responses(
+        (status = 200, description = "获取成功", body = Vec<String>)
+    ),
+    tag = "contact"
+))]
+pub async fn get_categories_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+) -> Result<Json<Vec<String>>, AppError> {
+    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user [{}]",
+        payload.id
+    )))?;
+    let categories = Contact::find()
+        .filter(contact::Column::User.eq(user.id))
+        .all(&state.conn)
+        .await?;
+    let mut categories = categories
+        .into_iter()
+        .map(|c| c.category.unwrap_or_else(|| "default".to_string()))
+        .collect::<Vec<String>>();
+    categories.sort();
+    categories.dedup();
+    Ok(Json(categories))
+}

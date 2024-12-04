@@ -13,7 +13,7 @@ use utoipa::OpenApi;
         user::find_user_handler,
         contact::add_contact_handler, contact::get_contacts_handler,
         contact::get_pending_contacts_handler, contact::get_new_contacts_handler,
-        contact::delete_contact_handler,
+        contact::delete_contact_handler, contact::get_categories_handler,
         contact::accept_contact_handler, contact::reject_contact_handler,
         message::send_msg_handler, message::get_msg_handler,
         group::get_group_handler, group::create_group_handler,

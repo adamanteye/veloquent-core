@@ -182,7 +182,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/group/list",
-            post(group::list_group_handler).route_layer(auth.clone()),
+            get(group::list_group_handler).route_layer(auth.clone()),
         )
         .route(
             "/upload",

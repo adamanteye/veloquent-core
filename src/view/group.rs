@@ -91,7 +91,7 @@ impl GroupProfile {
 /// 列出用户所在的群聊
 #[cfg_attr(feature = "dev",
 utoipa::path(
-    post,
+    get,
     path = "/group/list",
     responses(
         (status = 200, description = "成功获取", body = Vec<GroupProfile>),
@@ -102,7 +102,6 @@ utoipa::path(
 pub async fn list_group_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
-    Json(req): Json<GroupPost>,
 ) -> Result<Json<Vec<GroupProfile>>, AppError> {
     let user = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(

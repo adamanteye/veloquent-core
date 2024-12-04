@@ -465,7 +465,8 @@ pub async fn get_categories_handler(
         .await?;
     let mut categories = categories
         .into_iter()
-        .map(|c| c.category.unwrap_or_else(|| "default".to_string()))
+        .filter(|c| c.category.is_some())
+        .map(|c| c.category.unwrap())
         .collect::<Vec<String>>();
     categories.sort();
     categories.dedup();

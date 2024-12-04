@@ -179,6 +179,10 @@ pub fn router(state: AppState) -> Router {
             post(group::create_group_handler).route_layer(auth.clone()),
         )
         .route(
+            "/group/:id",
+            delete(group::delete_group_handler).route_layer(auth.clone()),
+        )
+        .route(
             "/upload",
             post(avatar::upload_handler).route_layer(auth.clone()),
         )

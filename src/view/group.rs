@@ -95,7 +95,7 @@ utoipa::path(
     path = "/group/new",
     request_body = GroupPost,
     responses(
-        (status = 200, description = "获取成功", body = GroupProfile),
+        (status = 200, description = "成功获取", body = GroupProfile),
     ),
     tag = "group"
 ))]
@@ -112,6 +112,8 @@ pub async fn create_group_handler(
     )))?;
     let mut members = req.members;
     members.push(user.id);
+    members.sort();
+    members.dedup();
     if members.len() < 2 {
         return Err(AppError::BadRequest("at least 2 members".to_string()));
     }
@@ -140,4 +142,47 @@ pub async fn create_group_handler(
     }
     let g = GroupProfile::from_group_id((g, &state.conn)).await?;
     Ok(Json(g))
+}
+
+/// 删除群聊
+///
+/// 只有群主可以删除群聊
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    delete,
+    path = "/group/{id}",
+    responses(
+        (status = 204, description = "成功删除"),
+    ),
+    tag = "group"
+))]
+#[instrument(skip(state))]
+pub async fn delete_group_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let user = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user [{}]",
+        payload.id
+    )))?;
+    let g = Group::find_by_id(id)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("cannot find group [{}]", id)))?;
+    if g.owner != user.id {
+        return Err(AppError::Forbidden(
+            "only owner can delete group".to_string(),
+        ));
+    }
+    let res: DeleteResult = Group::delete_by_id(id).exec(&state.conn).await?;
+    if res.rows_affected == 0 {
+        return Err(AppError::Server(anyhow::anyhow!(
+            "cannot delete group [{}]",
+            id
+        )));
+    }
+    event!(Level::INFO, "delete group [{}]", id);
+    Ok(StatusCode::NO_CONTENT.into_response())
 }

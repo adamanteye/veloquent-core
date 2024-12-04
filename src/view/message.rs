@@ -59,7 +59,7 @@ pub struct Msg {
     created_at: i64,
     /// 修改时间戳, UTC 毫秒
     edited_at: Option<i64>,
-    /// 阅读时间戳, UTC 毫秒
+    /// 阅读者及阅读时间
     read_ats: Vec<ReadAt>,
     /// 发送者 UUID
     sender: Option<Uuid>,

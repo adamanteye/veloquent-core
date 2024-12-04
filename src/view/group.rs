@@ -54,12 +54,12 @@ pub async fn get_group_handler(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<GroupProfile>, AppError> {
-    let g = GroupProfile::from_group_id((id, &state.conn)).await?;
+    let g = GroupProfile::from_group_id(id, &state.conn).await?;
     Ok(Json(g))
 }
 
 impl GroupProfile {
-    async fn from_group_id((id, conn): (Uuid, &DatabaseConnection)) -> Result<Self, AppError> {
+    async fn from_group_id(id: Uuid, conn: &DatabaseConnection) -> Result<Self, AppError> {
         let g = Group::find_by_id(id)
             .one(conn)
             .await?
@@ -86,6 +86,39 @@ impl GroupProfile {
             admins,
         })
     }
+}
+
+/// 列出用户所在的群聊
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    post,
+    path = "/group/list",
+    responses(
+        (status = 200, description = "成功获取", body = Vec<GroupProfile>),
+    ),
+    tag = "group"
+))]
+#[instrument(skip(state))]
+pub async fn list_group_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Json(req): Json<GroupPost>,
+) -> Result<Json<Vec<GroupProfile>>, AppError> {
+    let user = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user [{}]",
+        payload.id
+    )))?;
+    let groups = Member::find()
+        .filter(member::Column::User.eq(user.id))
+        .all(&state.conn)
+        .await?;
+    let mut g = Vec::new();
+    for m in groups {
+        let p = GroupProfile::from_group_id(m.group, &state.conn).await?;
+        g.push(p);
+    }
+    Ok(Json(g))
 }
 
 /// 创建群聊
@@ -140,7 +173,7 @@ pub async fn create_group_handler(
         };
         Member::insert(m).exec(&state.conn).await?;
     }
-    let g = GroupProfile::from_group_id((g, &state.conn)).await?;
+    let g = GroupProfile::from_group_id(g, &state.conn).await?;
     Ok(Json(g))
 }
 

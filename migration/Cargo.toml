@@ -1,13 +1,13 @@
 [package]
-name = "migration"
-version.workspace = true
+authors.workspace = true
 edition.workspace = true
 license.workspace = true
+name = "migration"
 publish.workspace = true
-authors.workspace = true
+version.workspace = true
 
 [dependencies]
-sea-orm-migration = { workspace = true, features = [
-    "runtime-tokio-rustls",
-    "sqlx-postgres",
-] }
+sea-orm-migration = {workspace = true, features = [
+  "runtime-tokio-rustls",
+  "sqlx-postgres",
+]}

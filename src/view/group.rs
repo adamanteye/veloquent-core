@@ -281,3 +281,46 @@ pub async fn transfer_group_handler(
     );
     Ok(StatusCode::OK.into_response())
 }
+
+/// 退出群聊
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    delete,
+    path = "/group/exit/{id}",
+    params(("id" = Uuid, Path, description = "群聊的唯一主键")),
+    responses(
+        (status = 204, description = "成功退出"),
+    ),
+    tag = "group"
+))]
+#[instrument(skip(state))]
+pub async fn exit_group_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let user = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user [{}]",
+        payload.id
+    )))?;
+    let g = Group::find_by_id(id)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("cannot find group [{}]", id)))?;
+    let m = Member::find()
+        .filter(member::Column::Group.eq(g.id))
+        .filter(member::Column::User.eq(user.id))
+        .one(&state.conn)
+        .await?;
+    let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", id)))?;
+    let res: DeleteResult = Member::delete_by_id(m.id).exec(&state.conn).await?;
+    if res.rows_affected == 0 {
+        return Err(AppError::Server(anyhow::anyhow!(
+            "cannot exit group [{}]",
+            id
+        )));
+    }
+    event!(Level::INFO, "exit group [{}]", id);
+    Ok(StatusCode::NO_CONTENT.into_response())
+}

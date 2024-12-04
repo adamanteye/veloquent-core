@@ -192,6 +192,10 @@ pub fn router(state: AppState) -> Router {
             put(group::transfer_group_handler).route_layer(auth.clone()),
         )
         .route(
+            "/group/exit/:id",
+            delete(group::exit_group_handler).route_layer(auth.clone()),
+        )
+        .route(
             "/upload",
             post(avatar::upload_handler).route_layer(auth.clone()),
         )

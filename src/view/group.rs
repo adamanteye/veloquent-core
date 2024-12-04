@@ -227,7 +227,7 @@ pub(super) struct TransferGroupParams {
     owner: Uuid,
 }
 
-/// 获取用户信息
+/// 转让群主身份
 #[cfg_attr(feature = "dev",
 utoipa::path(
     put,
@@ -236,7 +236,7 @@ utoipa::path(
     responses(
         (status = 200, description = "转让成功"),
     ),
-    tag = "user"
+    tag = "group"
 ))]
 #[instrument(skip(state))]
 pub async fn transfer_group_handler(

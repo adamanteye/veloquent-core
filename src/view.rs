@@ -165,7 +165,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/msg/:id",
-            get(message::get_msg_handler).route_layer(auth.clone()),
+            get(message::get_msg_handler)
+                .delete(message::delete_msg_handler)
+                .route_layer(auth.clone()),
         )
         .route(
             "/msg/session/:id",

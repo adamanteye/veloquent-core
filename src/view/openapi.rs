@@ -16,6 +16,7 @@ use utoipa::OpenApi;
         contact::delete_contact_handler, contact::get_categories_handler,
         contact::accept_contact_handler, contact::reject_contact_handler,
         message::send_msg_handler, message::get_msg_handler,
+        message::delete_msg_handler,
         group::get_group_handler, group::create_group_handler,
         group::delete_group_handler, group::list_group_handler,
         group::transfer_group_handler, group::exit_group_handler,

@@ -209,6 +209,40 @@ pub async fn get_msg_handler(
     Ok(Json((msg, read_ats).into()))
 }
 
+/// 撤回消息
+///
+/// 撤回消息意味着删除, 数据库中不会保留消息的任何记录
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    delete,
+    path = "/msg/{id}",
+    params(
+        ("id" = Uuid, Path, description = "消息的唯一主键")
+    ),
+    responses(
+        (status = 204, description = "删除成功", body = Msg),
+    ),
+    tag = "msg"
+))]
+#[instrument(skip(state))]
+pub async fn delete_msg_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let _ = Message::find_by_id(id)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("cannot find message [{}]", id)))?;
+    let res = Message::delete_by_id(id).exec(&state.conn).await?;
+    if res.rows_affected == 0 {
+        Err(AppError::NotFound(format!("cannot find message [{}]", id)))
+    } else {
+        event!(Level::DEBUG, "delete message [{}]", id);
+        Ok(StatusCode::NO_CONTENT.into_response())
+    }
+}
+
 /// 发送新消息
 #[cfg_attr(feature = "dev",
 utoipa::path(

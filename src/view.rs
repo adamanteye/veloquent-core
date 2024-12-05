@@ -204,6 +204,10 @@ pub fn router(state: AppState) -> Router {
             put(group::pin_group_handler).route_layer(auth.clone()),
         )
         .route(
+            "/group/invite/:id",
+            post(group::invite_group_handler).route_layer(auth.clone()),
+        )
+        .route(
             "/upload",
             post(avatar::upload_handler).route_layer(auth.clone()),
         )

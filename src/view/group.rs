@@ -194,6 +194,66 @@ pub async fn create_group_handler(
     Ok(Json(g))
 }
 
+/// 邀请加入群聊
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    post,
+    path = "/group/invite/{id}",
+    request_body = Vec<Uuid>,
+    params(("id" = Uuid, Path, description = "群聊的唯一主键")),
+    responses(
+        (status = 200, description = "成功邀请"),
+    ),
+    tag = "group"
+))]
+#[instrument(skip(state))]
+pub async fn invite_group_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(id): Path<Uuid>,
+    Json(users): Json<Vec<Uuid>>,
+) -> Result<impl IntoResponse, AppError> {
+    let user = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user [{}]",
+        payload.id
+    )))?;
+    let g = Group::find_by_id(id)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("cannot find group [{}]", id)))?;
+    let _ = Member::find()
+        .filter(member::Column::Group.eq(g.id))
+        .filter(member::Column::User.eq(user.id))
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("inviter not in group [{}]", id)))?;
+    for u in users.into_iter() {
+        let _ = User::find_by_id(u)
+            .one(&state.conn)
+            .await?
+            .ok_or(AppError::NotFound(format!("cannot find user [{}]", u)))?;
+        let m = Member::find()
+            .filter(member::Column::Group.eq(g.id))
+            .filter(member::Column::User.eq(u))
+            .one(&state.conn)
+            .await?;
+        if m.is_some() {
+            continue;
+        }
+        let m = member::ActiveModel {
+            id: ActiveValue::not_set(),
+            group: ActiveValue::set(g.id),
+            user: ActiveValue::set(u),
+            permission: ActiveValue::set(-1),
+            created_at: ActiveValue::not_set(),
+            anheften: ActiveValue::set(false),
+        };
+        Member::insert(m).exec(&state.conn).await?;
+    }
+    Ok(StatusCode::OK.into_response())
+}
+
 /// 删除群聊
 ///
 /// 只有群主可以删除群聊
@@ -300,12 +360,22 @@ pub async fn transfer_group_handler(
     Ok(StatusCode::OK.into_response())
 }
 
+#[cfg_attr(feature = "dev", derive(IntoParams))]
+#[derive(Deserialize, Debug)]
+pub(super) struct PinGroupParams {
+    pin: Option<bool>,
+}
+
 /// 置顶群聊
+///
+/// 在请求参数设置 `pin` 为 `true` 时置顶, `false` 时取消置顶
+///
+/// 默认置顶
 #[cfg_attr(feature = "dev",
 utoipa::path(
     put,
     path = "/group/pin/{id}",
-    params(("id" = Uuid, Path, description = "群聊的唯一主键")),
+    params(("id" = Uuid, Path, description = "群聊的唯一主键"), PinGroupParams),
     responses(
         (status = 200, description = "成功置顶"),
     ),
@@ -316,6 +386,7 @@ pub async fn pin_group_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
     Path(id): Path<Uuid>,
+    Query(params): Query<PinGroupParams>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
@@ -333,7 +404,11 @@ pub async fn pin_group_handler(
         .await?;
     let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", id)))?;
     let mut m = m.into_active_model();
-    m.anheften = ActiveValue::set(true);
+    if let Some(pin) = params.pin {
+        m.anheften = ActiveValue::set(pin);
+    } else {
+        m.anheften = ActiveValue::set(true);
+    }
     Member::update(m).exec(&state.conn).await?;
     event!(Level::INFO, "pin group [{}]", id);
     Ok(StatusCode::NO_CONTENT.into_response())

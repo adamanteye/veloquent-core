@@ -15,6 +15,7 @@ pub struct Model {
     pub file: Option<Uuid>,
     pub sender: Option<Uuid>,
     pub cite: Option<Uuid>,
+    pub fwd_von: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -28,7 +29,15 @@ pub enum Relation {
         on_update = "NoAction",
         on_delete = "SetNull"
     )]
-    SelfRef,
+    SelfRef2,
+    #[sea_orm(
+        belongs_to = "Entity",
+        from = "Column::FwdVon",
+        to = "Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    SelfRef1,
     #[sea_orm(
         belongs_to = "super::session::Entity",
         from = "Column::Session",

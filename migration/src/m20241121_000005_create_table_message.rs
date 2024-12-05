@@ -38,6 +38,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Message::File).uuid())
                     .col(ColumnDef::new(Message::Sender).uuid())
                     .col(ColumnDef::new(Message::Cite).uuid())
+                    .col(ColumnDef::new(Message::FwdVon).uuid())
                     .to_owned(),
             )
             .await?;
@@ -64,6 +65,16 @@ impl MigrationTrait for Migration {
         manager
             .create_foreign_key(
                 ForeignKey::create()
+                    .from(Message::Table, Message::FwdVon)
+                    .to(Message::Table, Message::Id)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .name("FK_MESSAGE_FWDVON_SESSION_ID")
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
                     .from(Message::Table, Message::Sender)
                     .to(User::Table, User::Id)
                     .on_delete(ForeignKeyAction::SetNull)
@@ -78,6 +89,14 @@ impl MigrationTrait for Migration {
             .drop_foreign_key(
                 ForeignKey::drop()
                     .name("FK_MESSAGE_SESSION_SESSION_ID")
+                    .table(Message::Table)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_foreign_key(
+                ForeignKey::drop()
+                    .name("FK_MESSAGE_FWDVON_SESSION_ID")
                     .table(Message::Table)
                     .to_owned(),
             )
@@ -113,6 +132,7 @@ pub enum Message {
     File,
     Cite,
     Sender,
+    FwdVon,
     CreatedAt,
     EditedAt,
     Session,

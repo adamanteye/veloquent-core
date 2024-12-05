@@ -11,15 +11,17 @@ pub struct MsgPost {
     /// | 0 | 文本 |
     /// | 1 | 图片 |
     /// | 2 | 文件 |
-    pub typ: i32,
+    typ: i32,
     /// 消息内容
     ///
     /// 在消息的值为图片或文件时, 消息内容存储消息的文件名, 即需要先上传文件再发送消息
-    pub content: Option<String>,
+    content: Option<String>,
     /// 引用消息的 UUID
-    pub cite: Option<Uuid>,
+    cite: Option<Uuid>,
     /// 消息的文件 UUID
-    pub file: Option<Uuid>,
+    file: Option<Uuid>,
+    /// 转发消息的 UUID
+    forward: Option<Uuid>,
 }
 
 impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
@@ -35,7 +37,7 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
             .cite
             .map(|u| ActiveValue::set(Some(u)))
             .unwrap_or(ActiveValue::not_set());
-        Ok(message::ActiveModel {
+        let mut m = message::ActiveModel {
             id: ActiveValue::not_set(),
             created_at: ActiveValue::not_set(),
             edited_at: ActiveValue::not_set(),
@@ -45,7 +47,16 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
             typ: ActiveValue::set(value.0.typ),
             file,
             cite,
-        })
+            fwd_von: ActiveValue::not_set(),
+        };
+        if let Some(f) = value.0.forward {
+            m.fwd_von = ActiveValue::set(Some(f));
+            m.content = ActiveValue::not_set();
+            m.typ = ActiveValue::not_set();
+            m.file = ActiveValue::not_set();
+            m.cite = ActiveValue::not_set();
+        }
+        Ok(m)
     }
 }
 
@@ -71,6 +82,8 @@ pub struct Msg {
     content: Option<String>,
     /// 文件 UUID
     file: Option<Uuid>,
+    /// 所属会话
+    session: Uuid,
 }
 
 #[derive(Serialize, Debug)]
@@ -97,6 +110,7 @@ impl From<(message::Model, Vec<ReadAt>)> for Msg {
             sender: value.0.sender,
             cite: value.0.cite,
             read_ats: value.1,
+            session: value.0.session,
         }
     }
 }

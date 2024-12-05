@@ -37,6 +37,8 @@ pub struct GroupProfile {
     ///
     /// 不包含群主
     admins: Vec<Uuid>,
+    /// 是否置顶
+    pin: bool,
 }
 
 /// 获取群聊信息
@@ -52,14 +54,19 @@ utoipa::path(
 ))]
 pub async fn get_group_handler(
     State(state): State<AppState>,
+    payload: JWTPayload,
     Path(id): Path<Uuid>,
 ) -> Result<Json<GroupProfile>, AppError> {
-    let g = GroupProfile::from_group_id(id, &state.conn).await?;
+    let g = GroupProfile::from_group_id(id, &state.conn, payload.id).await?;
     Ok(Json(g))
 }
 
 impl GroupProfile {
-    async fn from_group_id(id: Uuid, conn: &DatabaseConnection) -> Result<Self, AppError> {
+    async fn from_group_id(
+        id: Uuid,
+        conn: &DatabaseConnection,
+        user: Uuid,
+    ) -> Result<Self, AppError> {
         let g = Group::find_by_id(id)
             .one(conn)
             .await?
@@ -69,7 +76,16 @@ impl GroupProfile {
             .filter(member::Column::Permission.eq(0))
             .all(conn)
             .await?;
-        let members: Vec<Uuid> = members.into_iter().map(|m| m.user).collect();
+        let mut pin = false;
+        let members: Vec<Uuid> = members
+            .into_iter()
+            .map(|m| {
+                if m.user == user {
+                    pin = m.anheften;
+                }
+                m.user
+            })
+            .collect();
         let admins = Member::find()
             .filter(member::Column::Group.eq(g.id))
             .filter(member::Column::Permission.eq(1))
@@ -84,6 +100,7 @@ impl GroupProfile {
             created_at: g.created_at.and_utc().timestamp_millis(),
             members,
             admins,
+            pin,
         })
     }
 }
@@ -114,7 +131,7 @@ pub async fn list_group_handler(
         .await?;
     let mut g = Vec::new();
     for m in groups {
-        let p = GroupProfile::from_group_id(m.group, &state.conn).await?;
+        let p = GroupProfile::from_group_id(m.group, &state.conn, payload.id).await?;
         g.push(p);
     }
     Ok(Json(g))
@@ -173,7 +190,7 @@ pub async fn create_group_handler(
         };
         Member::insert(m).exec(&state.conn).await?;
     }
-    let g = GroupProfile::from_group_id(g, &state.conn).await?;
+    let g = GroupProfile::from_group_id(g, &state.conn, payload.id).await?;
     Ok(Json(g))
 }
 

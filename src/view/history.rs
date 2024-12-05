@@ -1,6 +1,9 @@
 use super::message::{Msg, ReadAt, Reader};
 use super::*;
-use entity::{message, prelude::Message};
+use entity::{
+    feed, message,
+    prelude::{Feed, Message},
+};
 
 /// 聊天记录
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -73,7 +76,7 @@ impl History {
     }
 }
 
-/// 获取聊天历史记录
+/// 获取历史聊天记录
 #[cfg_attr(feature = "dev",
 utoipa::path(
     get,
@@ -97,4 +100,40 @@ pub async fn get_history_handler(
     let history = History::find_by_session(params, &state.conn, session).await?;
     event!(Level::DEBUG, "get history");
     Ok(Json(history))
+}
+
+/// 删除聊天记录
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    put,
+    path = "/msg/mask/{id}",
+    params(
+        ("id" = Uuid, Path, description = "消息的唯一主键")
+    ),
+    responses(
+        (status = 204, description = "删除成功"),
+    ),
+    tag = "msg"
+))]
+#[instrument(skip(state))]
+pub async fn mask_history_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(msg): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let msg = Feed::find()
+        .filter(feed::Column::Message.eq(msg))
+        .filter(feed::Column::User.eq(payload.id))
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("cannot find message [{}]", msg)))?;
+    let res = Feed::delete_by_id(msg.id).exec(&state.conn).await?;
+    if res.rows_affected == 0 {
+        return Err(AppError::Server(anyhow::anyhow!(
+            "cannot mask message [{}]",
+            msg.id
+        )));
+    }
+    event!(Level::DEBUG, "mask message [{}]", msg.id);
+    Ok(StatusCode::NO_CONTENT.into_response())
 }

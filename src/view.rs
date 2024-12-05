@@ -174,6 +174,10 @@ pub fn router(state: AppState) -> Router {
                 .route_layer(auth.clone()),
         )
         .route(
+            "/msg/mask/:id",
+            put(history::mask_history_handler).route_layer(auth.clone()),
+        )
+        .route(
             "/group/:id",
             get(group::get_group_handler)
                 .delete(group::delete_group_handler)

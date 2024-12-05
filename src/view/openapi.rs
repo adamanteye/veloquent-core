@@ -19,7 +19,7 @@ use utoipa::OpenApi;
         group::get_group_handler, group::create_group_handler,
         group::delete_group_handler, group::list_group_handler,
         group::transfer_group_handler, group::exit_group_handler,
-        history::get_history_handler,
+        history::get_history_handler, history::mask_history_handler,
         avatar::upload_handler, avatar::upload_avatar_handler,
         download::download_handler,
     ),

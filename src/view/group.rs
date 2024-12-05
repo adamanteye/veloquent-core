@@ -169,6 +169,7 @@ pub async fn create_group_handler(
             user: ActiveValue::set(m),
             permission: ActiveValue::set(0),
             created_at: ActiveValue::not_set(),
+            anheften: ActiveValue::set(false),
         };
         Member::insert(m).exec(&state.conn).await?;
     }
@@ -280,6 +281,45 @@ pub async fn transfer_group_handler(
         params.owner
     );
     Ok(StatusCode::OK.into_response())
+}
+
+/// 置顶群聊
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    put,
+    path = "/group/pin/{id}",
+    params(("id" = Uuid, Path, description = "群聊的唯一主键")),
+    responses(
+        (status = 200, description = "成功置顶"),
+    ),
+    tag = "group"
+))]
+#[instrument(skip(state))]
+pub async fn pin_group_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let user = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user [{}]",
+        payload.id
+    )))?;
+    let g = Group::find_by_id(id)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("cannot find group [{}]", id)))?;
+    let m = Member::find()
+        .filter(member::Column::Group.eq(g.id))
+        .filter(member::Column::User.eq(user.id))
+        .one(&state.conn)
+        .await?;
+    let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", id)))?;
+    let mut m = m.into_active_model();
+    m.anheften = ActiveValue::set(true);
+    Member::update(m).exec(&state.conn).await?;
+    event!(Level::INFO, "pin group [{}]", id);
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 /// 退出群聊

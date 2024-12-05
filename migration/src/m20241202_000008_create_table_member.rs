@@ -29,6 +29,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Member::User).uuid().not_null())
                     .col(ColumnDef::new(Member::Group).uuid().not_null())
                     .col(ColumnDef::new(Member::Permission).integer().not_null())
+                    .col(ColumnDef::new(Member::Anheften).boolean().not_null())
                     .to_owned(),
             )
             .await?;
@@ -85,4 +86,5 @@ pub enum Member {
     Group,
     CreatedAt,
     Permission,
+    Anheften,
 }

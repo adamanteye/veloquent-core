@@ -11,6 +11,7 @@ pub struct Model {
     pub user: Uuid,
     pub group: Uuid,
     pub permission: i32,
+    pub anheften: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

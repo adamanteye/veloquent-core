@@ -1,7 +1,7 @@
 use super::*;
 use entity::{
-    feed, message,
-    prelude::{Feed, Message},
+    contact, feed, member, message,
+    prelude::{Contact, Feed, Member, Message},
 };
 
 #[derive(Deserialize, Debug)]
@@ -273,6 +273,69 @@ pub async fn send_msg_handler(
         .one(&state.conn)
         .await?
         .ok_or(AppError::Server(anyhow::anyhow!("cannot store message")))?;
+    tokio::task::spawn(async move {
+        match Contact::find()
+            .filter(contact::Column::Session.eq(session))
+            .all(&state.conn)
+            .await
+        {
+            Ok(contacts) => {
+                let mut users: Vec<Uuid> = contacts.iter().map(|c| c.user).collect();
+                users.sort();
+                users.dedup();
+                for user in users {
+                    match Feed::insert(feed::ActiveModel {
+                        id: ActiveValue::not_set(),
+                        user: ActiveValue::set(user),
+                        message: ActiveValue::set(msg.id),
+                        read_at: ActiveValue::not_set(),
+                    })
+                    .exec(&state.conn)
+                    .await
+                    {
+                        Ok(_) => {}
+                        Err(e) => {
+                            event!(Level::ERROR, "cannot store contact feed: {}", e);
+                        }
+                    }
+                }
+                match Member::find()
+                    .filter(member::Column::Group.eq(session))
+                    .all(&state.conn)
+                    .await
+                {
+                    Ok(group_users) => {
+                        let mut group_users: Vec<Uuid> =
+                            group_users.into_iter().map(|m| m.user).collect();
+                        group_users.sort();
+                        group_users.dedup();
+                        for user in group_users {
+                            match Feed::insert(feed::ActiveModel {
+                                id: ActiveValue::not_set(),
+                                user: ActiveValue::set(user),
+                                message: ActiveValue::set(msg.id),
+                                read_at: ActiveValue::not_set(),
+                            })
+                            .exec(&state.conn)
+                            .await
+                            {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    event!(Level::ERROR, "cannot store group feed: {}", e);
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        event!(Level::ERROR, "cannot find group users: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                event!(Level::ERROR, "cannot find contacts: {}", e);
+            }
+        }
+    });
     event!(
         Level::DEBUG,
         "new message [{}] by user [{}]",

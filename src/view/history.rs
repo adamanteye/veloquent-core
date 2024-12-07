@@ -1,6 +1,6 @@
 use super::message::{Msg, ReadAt, Reader};
 use super::*;
-use entity::{message, prelude::Message};
+use entity::{feed, message, prelude::Message};
 
 /// 聊天记录
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -36,6 +36,7 @@ impl History {
         req: HistoryRequest,
         conn: &DatabaseConnection,
         session: Uuid,
+        user: Uuid,
     ) -> Result<Self, AppError> {
         let start = req.start.unwrap_or(0);
         let end = req.end.unwrap_or(50);
@@ -44,6 +45,14 @@ impl History {
         }
         let msgs = Message::find()
             .filter(message::Column::Session.eq(session))
+            .join_rev(
+                JoinType::InnerJoin,
+                feed::Entity::belongs_to(message::Entity)
+                    .from(feed::Column::Message)
+                    .to(message::Column::Id)
+                    .into(),
+            )
+            .filter(feed::Column::User.eq(user))
             .order_by(message::Column::CreatedAt, sea_orm::Order::Desc)
             .limit(Some((end - start) as u64))
             .all(conn)
@@ -94,7 +103,7 @@ pub async fn get_history_handler(
     Query(params): Query<HistoryRequest>,
     Path(session): Path<Uuid>,
 ) -> Result<Json<History>, AppError> {
-    let history = History::find_by_session(params, &state.conn, session).await?;
+    let history = History::find_by_session(params, &state.conn, session, payload.id).await?;
     event!(Level::DEBUG, "get history");
     Ok(Json(history))
 }

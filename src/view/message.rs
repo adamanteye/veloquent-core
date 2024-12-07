@@ -1,5 +1,8 @@
 use super::*;
-use entity::{message, prelude::Message};
+use entity::{
+    feed, message,
+    prelude::{Feed, Message},
+};
 
 #[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -277,4 +280,40 @@ pub async fn send_msg_handler(
         payload.id
     );
     Ok(Json(msg.into()))
+}
+
+/// 删除聊天记录
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    put,
+    path = "/msg/mask/{id}",
+    params(
+        ("id" = Uuid, Path, description = "消息的唯一主键")
+    ),
+    responses(
+        (status = 204, description = "删除成功"),
+    ),
+    tag = "msg"
+))]
+#[instrument(skip(state))]
+pub async fn mask_msg_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(msg): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let msg = Feed::find()
+        .filter(feed::Column::Message.eq(msg))
+        .filter(feed::Column::User.eq(payload.id))
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("cannot find message [{}]", msg)))?;
+    let res = Feed::delete_by_id(msg.id).exec(&state.conn).await?;
+    if res.rows_affected == 0 {
+        return Err(AppError::Server(anyhow::anyhow!(
+            "cannot mask message [{}]",
+            msg.id
+        )));
+    }
+    event!(Level::DEBUG, "mask message [{}]", msg.id);
+    Ok(StatusCode::NO_CONTENT.into_response())
 }

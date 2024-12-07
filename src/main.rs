@@ -69,8 +69,11 @@ async fn main() -> Result<()> {
         config.database.port,
         config.database.username
     );
-    Migrator::up(&db, None).await?;
-    event!(Level::WARN, "migrated database");
+    #[cfg(feature = "dev")]
+    {
+        Migrator::up(&db, None).await?;
+        event!(Level::WARN, "migrated database");
+    }
     let secret = config.authentication.secret;
     jwt::JWT_SETTING
         .set(jwt::JwtSetting {

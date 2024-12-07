@@ -24,7 +24,7 @@ pub struct History {
 
 #[cfg_attr(feature = "dev", derive(IntoParams))]
 #[derive(Deserialize, Debug)]
-pub struct HistoryRequest {
+pub(super) struct HistoryRequest {
     /// 最近一条消息, 默认为 `0`
     start: Option<u64>,
     /// 最早一条消息, 默认为 `50`

@@ -254,14 +254,23 @@ pub async fn invite_group_handler(
     Ok(StatusCode::OK.into_response())
 }
 
-/// 删除群聊
+#[cfg_attr(feature = "dev", derive(IntoParams))]
+#[derive(Deserialize, Debug)]
+pub(super) struct GroupDeleteParams {
+    /// 要移除的用户
+    user: Option<Uuid>,
+}
+
+/// 删除群聊或移除群聊中的成员
 ///
 /// 只有群主可以删除群聊
+///
+/// 管理员和群主可以移除群聊中的成员
 #[cfg_attr(feature = "dev",
 utoipa::path(
     delete,
     path = "/group/{id}",
-    params(("id" = Uuid, Path, description = "群聊的唯一主键")),
+    params(("id" = Uuid, Path, description = "群聊的唯一主键"), GroupDeleteParams),
     responses(
         (status = 204, description = "成功删除"),
     ),
@@ -272,6 +281,7 @@ pub async fn delete_group_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
     Path(id): Path<Uuid>,
+    Query(params): Query<GroupDeleteParams>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
@@ -282,19 +292,49 @@ pub async fn delete_group_handler(
         .one(&state.conn)
         .await?
         .ok_or(AppError::NotFound(format!("cannot find group [{}]", id)))?;
-    if g.owner != user.id {
-        return Err(AppError::Forbidden(
-            "only owner can delete group".to_string(),
-        ));
+    if let Some(u) = params.user {
+        let is_admin = Member::find()
+            .filter(member::Column::Group.eq(g.id))
+            .filter(member::Column::User.eq(user.id))
+            .one(&state.conn)
+            .await?
+            .ok_or(AppError::NotFound(format!("not in group [{}]", id)))?
+            .permission
+            == 1;
+        if !is_admin && g.owner != user.id {
+            return Err(AppError::Forbidden(
+                "only admin or owner can delete member".to_string(),
+            ));
+        }
+        let m = Member::find()
+            .filter(member::Column::Group.eq(g.id))
+            .filter(member::Column::User.eq(u))
+            .one(&state.conn)
+            .await?;
+        let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", id)))?;
+        let res: DeleteResult = Member::delete_by_id(m.id).exec(&state.conn).await?;
+        if res.rows_affected == 0 {
+            return Err(AppError::Server(anyhow::anyhow!(
+                "cannot delete member [{}]",
+                u
+            )));
+        }
+        event!(Level::INFO, "delete member [{}] from group [{}]", u, id);
+    } else {
+        if g.owner != user.id {
+            return Err(AppError::Forbidden(
+                "only owner can delete group".to_string(),
+            ));
+        }
+        let res: DeleteResult = Group::delete_by_id(id).exec(&state.conn).await?;
+        if res.rows_affected == 0 {
+            return Err(AppError::Server(anyhow::anyhow!(
+                "cannot delete group [{}]",
+                id
+            )));
+        }
+        event!(Level::INFO, "delete group [{}]", id);
     }
-    let res: DeleteResult = Group::delete_by_id(id).exec(&state.conn).await?;
-    if res.rows_affected == 0 {
-        return Err(AppError::Server(anyhow::anyhow!(
-            "cannot delete group [{}]",
-            id
-        )));
-    }
-    event!(Level::INFO, "delete group [{}]", id);
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 

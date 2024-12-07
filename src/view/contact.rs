@@ -9,9 +9,10 @@ use entity::{
 #[cfg_attr(feature = "dev",
 utoipa::path(
     post,
-    path = "/contact/new",
+    path = "/contact/new/{id}",
     params(
-        ("id" = Uuid, Path, description = "要添加的用户主键") ), responses(
+        ("id" = Uuid, Path, description = "要添加的用户主键")),
+    responses(
         (status = 200, description = "发起成功")
     ),
     tag = "contact"
@@ -93,7 +94,7 @@ pub async fn add_contact_handler(
 #[cfg_attr(feature = "dev",
 utoipa::path(
     put,
-    path = "/contact/reject",
+    path = "/contact/reject/{id}",
     params(
         ("id" = Uuid, Path, description = "要拒绝的用户主键") ), responses(
         (status = 200, description = "拒绝成功")
@@ -141,7 +142,7 @@ pub async fn reject_contact_handler(
 #[cfg_attr(feature = "dev",
 utoipa::path(
     delete,
-    path = "/contact/delete",
+    path = "/contact/delete/{id}",
     params(
         ("id" = Uuid, Path, description = "要删除的用户主键") ), responses(
         (status = 204, description = "删除成功")
@@ -189,7 +190,9 @@ pub async fn delete_contact_handler(
 
 /// 接受添加好友
 #[cfg_attr(feature = "dev",
-utoipa::path(post, path = "/contact/accept",
+utoipa::path(
+    post,
+    path = "/contact/accept/{id}",
     params(
         ("id" = Uuid, Path, description = "要接受的用户主键") ), responses(
         (status = 200, description = "接受成功")
@@ -315,7 +318,7 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-            "SELECT contact.user, contact.session, contact.category FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
+            "SELECT contact.user, contact.session, contact.category FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session, contact.category FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts
             .into_iter()
             .map(|c| {
@@ -333,7 +336,7 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT contact.ref_user AS user, contact.session, contact.category FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
+                    "SELECT contact.ref_user AS user, contact.session, contact.category FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session, contact.category FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts.into_iter().map(UserUuid::into).collect();
         let num = items.len() as i32;
         Ok(Self { num, items })
@@ -361,7 +364,9 @@ pub async fn notify_new_contacts(
 ///
 /// 即希望添加当前用户作为好友的用户列表
 #[cfg_attr(feature = "dev",
-utoipa::path(get, path = "/contact/new",
+utoipa::path(
+    get,
+    path = "/contact/new",
     responses(
         (status = 200, description = "获取成功", body = ContactList)
     ),
@@ -396,7 +401,9 @@ pub(super) struct CategoryParams {
 
 /// 获取好友列表
 #[cfg_attr(feature = "dev",
-utoipa::path(get, path = "/contact/list",
+utoipa::path(
+    get,
+    path = "/contact/list",
     params(CategoryParams),
     responses(
         (status = 200, description = "获取成功", body = ContactList)
@@ -435,7 +442,9 @@ pub async fn get_contacts_handler(
 
 /// 获取发起申请但待通过的好友列表
 #[cfg_attr(feature = "dev",
-utoipa::path(get, path = "/contact/pending",
+utoipa::path(
+    get,
+    path = "/contact/pending",
     responses(
         (status = 200, description = "获取成功", body = ContactList)
     ),
@@ -462,7 +471,9 @@ pub async fn get_pending_contacts_handler(
 
 /// 获取好友分组列表
 #[cfg_attr(feature = "dev",
-utoipa::path(get, path = "/contact/category",
+utoipa::path(
+    get,
+    path = "/contact/category",
     responses(
         (status = 200, description = "获取成功", body = Vec<String>)
     ),

@@ -1,12 +1,14 @@
 //! Veloquent 请求处理
 
-pub use super::entity;
-pub use crate::{error::AppError, utility};
+use super::entity;
+use super::jwt::JWTPayload;
+use crate::{error::AppError, utility};
+use ws::WebSocketPool;
 
-pub use axum::{
+use axum::{
     body::Bytes,
     extract::{
-        ws::{CloseFrame, Message as WebSocketMessage, WebSocket, WebSocketUpgrade},
+        ws::{Message as WebSocketMessage, WebSocket, WebSocketUpgrade},
         Path, Query, State,
     },
     http::StatusCode,
@@ -15,20 +17,19 @@ pub use axum::{
     routing::{delete, get, post, put},
     Json, Router,
 };
-pub use axum_extra::protobuf::Protobuf;
-pub use sea_orm::{
+use axum_extra::protobuf::Protobuf;
+use dashmap::DashMap;
+use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseBackend::Postgres, DatabaseConnection, DeleteResult,
     EntityTrait, FromQueryResult, IntoActiveModel, JoinType, PaginatorTrait, QueryFilter,
-    QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
+    QueryOrder, QuerySelect, Statement,
 };
-pub use sea_query::{Alias, Condition};
-pub use serde::{Deserialize, Serialize};
-pub use std::{collections::HashMap, sync::Arc};
-pub use tokio::sync::{Mutex, RwLock};
-pub use tracing::{event, instrument, Level};
-pub use uuid::Uuid;
-
-use super::jwt::JWTPayload;
+use sea_query::Condition;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 #[cfg(feature = "dev")]
 use utoipa::OpenApi;
@@ -36,8 +37,6 @@ use utoipa::OpenApi;
 use utoipa::{IntoParams, ToSchema};
 #[cfg(feature = "dev")]
 use utoipa_swagger_ui::SwaggerUi;
-
-use dashmap::DashMap;
 
 mod avatar;
 mod contact;
@@ -50,6 +49,7 @@ mod message;
 #[cfg(feature = "dev")]
 mod openapi;
 mod user;
+mod ws;
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -58,74 +58,9 @@ pub struct AppState {
     pub ws_pool: WebSocketPool,
 }
 
-#[doc(hidden)]
-#[derive(Clone, Debug, Default)]
-pub struct WebSocketPool(Arc<DashMap<Uuid, Arc<Mutex<WebSocket>>>>);
-
-impl WebSocketPool {
-    #[instrument(skip(self, ws))]
-    pub async fn register(self, user: Uuid, ws: WebSocket) {
-        event!(Level::INFO, "register websocket for user [{}]", user);
-        let map = self.0;
-        map.insert(user, Arc::new(Mutex::new(ws)));
-    }
-
-    #[instrument(skip(self))]
-    pub async fn notify(self, user: Uuid, message: Result<WebSocketMessage, AppError>) {
-        if let Some(ws) = self.0.get_mut(&user) {
-            if let Ok(message) = message {
-                event!(
-                    Level::INFO,
-                    "send message [{:?}] to user [{}]",
-                    message,
-                    user
-                );
-                ws.lock().await.send(message).await.ok();
-            }
-        }
-    }
-}
-
-async fn handle_socket(mut socket: WebSocket, pool: WebSocketPool) {
-    if let Some(msg) = socket.recv().await {
-        event!(Level::DEBUG, "received message: [{:?}]", msg);
-        if let Ok(msg) = msg {
-            match msg {
-                WebSocketMessage::Text(t) => {
-                    let token: Result<JWTPayload, AppError> = t.as_str().try_into();
-                    match token {
-                        Ok(payload) => {
-                            event!(Level::INFO, "received user: [{}]", payload.id);
-                            pool.register(payload.id, socket).await;
-                        }
-                        Err(e) => {
-                            event!(Level::ERROR, "invalid JWT: [{:?}]", e);
-                            return;
-                        }
-                    }
-                }
-                _ => {
-                    return;
-                }
-            }
-        } else {
-            return;
-        }
-    }
-}
-
 /// Swagger Open API 文档路径
 #[cfg(feature = "dev")]
-pub(super) static DOC_PATH: &str = "/doc";
-
-#[instrument(skip(state, ws))]
-async fn ws_upgrade_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-) -> Result<impl IntoResponse, AppError> {
-    event!(Level::INFO, "receive websocket establishment request");
-    Ok(ws.on_upgrade(move |socket| handle_socket(socket, state.ws_pool)))
-}
+pub static DOC_PATH: &str = "/doc";
 
 /// Veloquent 路由
 pub fn router(state: AppState) -> Router {
@@ -251,6 +186,6 @@ pub fn router(state: AppState) -> Router {
             "/download/:id",
             get(download::download_handler).route_layer(auth.clone()),
         )
-        .route("/ws", get(ws_upgrade_handler))
+        .route("/ws", get(ws::ws_upgrade_handler))
         .with_state(state)
 }

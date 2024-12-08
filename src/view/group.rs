@@ -391,6 +391,7 @@ pub async fn transfer_group_handler(
     }
     let mut g = g.into_active_model();
     g.owner = ActiveValue::set(params.owner);
+    Group::update(g).exec(&state.conn).await?;
     event!(
         Level::INFO,
         "transfer group [{}] to [{}]",

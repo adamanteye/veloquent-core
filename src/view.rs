@@ -251,11 +251,6 @@ pub fn router(state: AppState) -> Router {
             "/download/:id",
             get(download::download_handler).route_layer(auth.clone()),
         )
-        .route(
-            "/ws",
-            get(
-                ws_upgrade_handler, //    .layer(auth.clone())
-            ),
-        )
+        .route("/ws", get(ws_upgrade_handler))
         .with_state(state)
 }

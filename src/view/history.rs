@@ -71,6 +71,14 @@ impl History {
         let end = start + msgs.len() as u64;
         let cnt = Message::find()
             .filter(message::Column::Session.eq(session))
+            .join_rev(
+                JoinType::InnerJoin,
+                feed::Entity::belongs_to(message::Entity)
+                    .from(feed::Column::Message)
+                    .to(message::Column::Id)
+                    .into(),
+            )
+            .filter(feed::Column::User.eq(user))
             .count(conn)
             .await?;
         Ok(History {

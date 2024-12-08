@@ -1,6 +1,6 @@
 use super::*;
 use entity::{
-    contact, feed, member, message,
+    contact, feed, group, member, message,
     prelude::{Contact, Feed, Member, Message},
 };
 
@@ -300,7 +300,14 @@ pub async fn send_msg_handler(
                     }
                 }
                 match Member::find()
-                    .filter(member::Column::Group.eq(session))
+                    .join_rev(
+                        JoinType::InnerJoin,
+                        group::Entity::belongs_to(member::Entity)
+                            .from(group::Column::Id)
+                            .to(member::Column::Group)
+                            .into(),
+                    )
+                    .filter(group::Column::Session.eq(session))
                     .all(&state.conn)
                     .await
                 {

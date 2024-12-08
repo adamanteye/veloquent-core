@@ -138,13 +138,74 @@ pub async fn reject_contact_handler(
     Ok(StatusCode::OK.into_response())
 }
 
+#[cfg_attr(feature = "dev", derive(IntoParams))]
+#[derive(Deserialize, Debug)]
+pub(super) struct EditContactParams {
+    /// 好友备注
+    alias: Option<String>,
+    /// 好友分组
+    category: Option<String>,
+}
+
+/// 修改好友备注或分组
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    delete,
+    path = "/contact/edit/{id}",
+    params(
+        ("id" = Uuid, Path, description = "要编辑的用户主键"),
+        EditContactParams
+    ),
+    responses(
+        (status = 200, description = "编辑成功")
+    ),
+    tag = "contact"
+))]
+#[instrument(skip(state))]
+pub async fn edit_contact_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(con): Path<Uuid>,
+    Query(params): Query<EditContactParams>,
+) -> Result<impl IntoResponse, AppError> {
+    let mut c: contact::ActiveModel = Contact::find()
+        .filter(
+            Condition::all()
+                .add(contact::Column::User.eq(payload.id))
+                .add(contact::Column::RefUser.eq(con)),
+        )
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!(
+            "cannot find contact [{}] of [{}]",
+            con, payload.id
+        )))?
+        .into();
+    let _ = Contact::find()
+        .filter(
+            Condition::all()
+                .add(contact::Column::RefUser.eq(payload.id))
+                .add(contact::Column::User.eq(con)),
+        )
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!(
+            "cannot find contact [{}] of [{}]",
+            payload.id, con
+        )))?;
+    c.alias = ActiveValue::set(params.alias);
+    c.category = ActiveValue::set(params.category);
+    Contact::update(c).exec(&state.conn).await?;
+    Ok(StatusCode::OK.into_response())
+}
+
 /// 删除好友
 #[cfg_attr(feature = "dev",
 utoipa::path(
     delete,
     path = "/contact/delete/{id}",
-    params(
-        ("id" = Uuid, Path, description = "要删除的用户主键") ), responses(
+    params(("id" = Uuid, Path, description = "要删除的用户主键")),
+    responses(
         (status = 204, description = "删除成功")
     ),
     tag = "contact"

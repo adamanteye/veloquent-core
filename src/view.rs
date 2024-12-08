@@ -194,6 +194,10 @@ pub fn router(state: AppState) -> Router {
             delete(contact::delete_contact_handler).route_layer(auth.clone()),
         )
         .route(
+            "/contact/edit/:id",
+            put(contact::edit_contact_handler).route_layer(auth.clone()),
+        )
+        .route(
             "/msg/:id",
             get(message::get_msg_handler)
                 .delete(message::delete_msg_handler)

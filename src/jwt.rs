@@ -54,6 +54,19 @@ impl From<Uuid> for JWTPayload {
     }
 }
 
+impl TryFrom<&str> for JWTPayload {
+    type Error = AppError;
+    fn try_from(token: &str) -> Result<Self, Self::Error> {
+        jsonwebtoken::decode::<JWTPayload>(
+            token,
+            &JWT_SETTING.get().unwrap().de_key,
+            JWT_ALG.get().unwrap(),
+        )
+        .map_err(|e| AppError::Unauthorized(format!("invalid JWT: [{}]", e)))
+        .map(|t| t.claims)
+    }
+}
+
 #[async_trait]
 impl<S> FromRequestParts<S> for JWTPayload
 where
@@ -65,12 +78,7 @@ where
             .extract::<TypedHeader<Authorization<Bearer>>>()
             .await
             .map_err(|e| AppError::BadRequest(format!("token not found: [{}]", e)))?;
-        let token = jsonwebtoken::decode::<JWTPayload>(
-            bearer.token(),
-            &JWT_SETTING.get().unwrap().de_key,
-            JWT_ALG.get().unwrap(),
-        )
-        .map_err(|e| AppError::Unauthorized(format!("invalid JWT: [{}]", e)))?;
-        Ok(token.claims)
+        let token = bearer.token().try_into()?;
+        Ok(token)
     }
 }

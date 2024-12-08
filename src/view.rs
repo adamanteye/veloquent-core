@@ -12,7 +12,7 @@ pub use axum::{
     http::StatusCode,
     middleware,
     response::{IntoResponse, Response},
-    routing::{any, delete, get, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 pub use axum_extra::protobuf::Protobuf;
@@ -28,7 +28,7 @@ pub use tokio::sync::{Mutex, RwLock};
 pub use tracing::{event, instrument, Level};
 pub use uuid::Uuid;
 
-use super::jwt::{JWTPayload, JWT_ALG, JWT_SETTING};
+use super::jwt::JWTPayload;
 
 #[cfg(feature = "dev")]
 use utoipa::OpenApi;
@@ -36,6 +36,8 @@ use utoipa::OpenApi;
 use utoipa::{IntoParams, ToSchema};
 #[cfg(feature = "dev")]
 use utoipa_swagger_ui::SwaggerUi;
+
+use dashmap::DashMap;
 
 mod avatar;
 mod contact;
@@ -58,19 +60,19 @@ pub struct AppState {
 
 #[doc(hidden)]
 #[derive(Clone, Debug, Default)]
-pub struct WebSocketPool(Arc<Mutex<HashMap<Uuid, Arc<Mutex<WebSocket>>>>>);
+pub struct WebSocketPool(Arc<DashMap<Uuid, Arc<Mutex<WebSocket>>>>);
 
 impl WebSocketPool {
     #[instrument(skip(self, ws))]
     pub async fn register(self, user: Uuid, ws: WebSocket) {
         event!(Level::INFO, "register websocket for user [{}]", user);
-        let mut map = self.0.lock().await;
+        let map = self.0;
         map.insert(user, Arc::new(Mutex::new(ws)));
     }
 
     #[instrument(skip(self))]
     pub async fn notify(self, user: Uuid, message: Result<WebSocketMessage, AppError>) {
-        if let Some(ws) = self.0.lock().await.get_mut(&user) {
+        if let Some(ws) = self.0.get_mut(&user) {
             if let Ok(message) = message {
                 event!(
                     Level::INFO,
@@ -90,15 +92,9 @@ async fn handle_socket(mut socket: WebSocket, pool: WebSocketPool) {
         if let Ok(msg) = msg {
             match msg {
                 WebSocketMessage::Text(t) => {
-                    let token = jsonwebtoken::decode::<JWTPayload>(
-                        &t,
-                        &JWT_SETTING.get().unwrap().de_key,
-                        JWT_ALG.get().unwrap(),
-                    )
-                    .map_err(|e| AppError::Unauthorized(format!("invalid JWT: [{}]", e)));
+                    let token: Result<JWTPayload, AppError> = t.as_str().try_into();
                     match token {
-                        Ok(token) => {
-                            let payload = token.claims;
+                        Ok(payload) => {
                             event!(Level::INFO, "received user: [{}]", payload.id);
                             pool.register(payload.id, socket).await;
                         }

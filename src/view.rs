@@ -6,13 +6,13 @@ pub use crate::{error::AppError, utility};
 pub use axum::{
     body::Bytes,
     extract::{
-        ws::{Message as WebSocketMessage, WebSocket, WebSocketUpgrade},
+        ws::{CloseFrame, Message as WebSocketMessage, WebSocket, WebSocketUpgrade},
         Path, Query, State,
     },
     http::StatusCode,
     middleware,
     response::{IntoResponse, Response},
-    routing::{delete, get, post, put},
+    routing::{any, delete, get, post, put},
     Json, Router,
 };
 pub use axum_extra::protobuf::Protobuf;
@@ -24,11 +24,11 @@ pub use sea_orm::{
 pub use sea_query::{Alias, Condition};
 pub use serde::{Deserialize, Serialize};
 pub use std::{collections::HashMap, sync::Arc};
-pub use tokio::sync::Mutex;
+pub use tokio::sync::{Mutex, RwLock};
 pub use tracing::{event, instrument, Level};
 pub use uuid::Uuid;
 
-use super::jwt::JWTPayload;
+use super::jwt::{JWTPayload, JWT_ALG, JWT_SETTING};
 
 #[cfg(feature = "dev")]
 use utoipa::OpenApi;
@@ -58,13 +58,14 @@ pub struct AppState {
 
 #[doc(hidden)]
 #[derive(Clone, Debug, Default)]
-pub struct WebSocketPool(Arc<Mutex<HashMap<Uuid, WebSocket>>>);
+pub struct WebSocketPool(Arc<Mutex<HashMap<Uuid, Arc<Mutex<WebSocket>>>>>);
 
 impl WebSocketPool {
     #[instrument(skip(self, ws))]
     pub async fn register(self, user: Uuid, ws: WebSocket) {
         event!(Level::INFO, "register websocket for user [{}]", user);
-        self.0.lock().await.insert(user, ws);
+        let mut map = self.0.lock().await;
+        map.insert(user, Arc::new(Mutex::new(ws)));
     }
 
     #[instrument(skip(self))]
@@ -77,13 +78,43 @@ impl WebSocketPool {
                     message,
                     user
                 );
-                ws.send(message).await.ok();
+                ws.lock().await.send(message).await.ok();
             }
         }
     }
+}
 
-    pub async fn remove(self, user: Uuid) {
-        self.0.lock().await.remove(&user);
+async fn handle_socket(mut socket: WebSocket, pool: WebSocketPool) {
+    if let Some(msg) = socket.recv().await {
+        event!(Level::DEBUG, "received message: [{:?}]", msg);
+        if let Ok(msg) = msg {
+            match msg {
+                WebSocketMessage::Text(t) => {
+                    let token = jsonwebtoken::decode::<JWTPayload>(
+                        &t,
+                        &JWT_SETTING.get().unwrap().de_key,
+                        JWT_ALG.get().unwrap(),
+                    )
+                    .map_err(|e| AppError::Unauthorized(format!("invalid JWT: [{}]", e)));
+                    match token {
+                        Ok(token) => {
+                            let payload = token.claims;
+                            event!(Level::INFO, "received user: [{}]", payload.id);
+                            pool.register(payload.id, socket).await;
+                        }
+                        Err(e) => {
+                            event!(Level::ERROR, "invalid JWT: [{:?}]", e);
+                            return;
+                        }
+                    }
+                }
+                _ => {
+                    return;
+                }
+            }
+        } else {
+            return;
+        }
     }
 }
 
@@ -94,11 +125,10 @@ pub(super) static DOC_PATH: &str = "/doc";
 #[instrument(skip(state, ws))]
 async fn ws_upgrade_handler(
     ws: WebSocketUpgrade,
-    payload: JWTPayload,
     State(state): State<AppState>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     event!(Level::INFO, "receive websocket establishment request");
-    ws.on_upgrade(move |socket| state.ws_pool.register(payload.id, socket))
+    Ok(ws.on_upgrade(move |socket| handle_socket(socket, state.ws_pool)))
 }
 
 /// Veloquent 路由
@@ -221,6 +251,11 @@ pub fn router(state: AppState) -> Router {
             "/download/:id",
             get(download::download_handler).route_layer(auth.clone()),
         )
-        .route("/ws", get(ws_upgrade_handler).route_layer(auth.clone()))
+        .route(
+            "/ws",
+            get(
+                ws_upgrade_handler, //    .layer(auth.clone())
+            ),
+        )
         .with_state(state)
 }

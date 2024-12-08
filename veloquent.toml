@@ -1,18 +1,18 @@
 [database]
-username = "yangzheh"
-password = "123456"
 address = "127.0.0.1"
-port = 5432
-name = "veloquent"
 max_connections = 10
+name = "veloquent"
+password = "123456"
+port = 5432
+username = "yangzheh"
 
 [listen]
 address = "0.0.0.0"
-port = 80
+port = 8000
 
 [authentication]
-secret = "secret"
 exp_after = 86400
+secret = "secret"
 
 [upload]
 dir = "/srv/veloquent/upload"

@@ -340,19 +340,19 @@ pub async fn delete_group_handler(
 
 #[cfg_attr(feature = "dev", derive(IntoParams))]
 #[derive(Deserialize, Debug)]
-pub(super) struct TransferGroupParams {
-    group: Uuid,
-    owner: Uuid,
+pub(super) struct ManageGroupParams {
+    owner: Option<Uuid>,
+    admin: Option<Uuid>,
 }
 
-/// 转让群主身份
+/// 转让群主身份或设置管理员
 #[cfg_attr(feature = "dev",
 utoipa::path(
     put,
-    path = "/group/transfer",
-    params(TransferGroupParams),
+    path = "/group/manage/{id}",
+    params(("id" = Uuid, Path, description = "群聊的唯一主键"), ManageGroupParams),
     responses(
-        (status = 200, description = "转让成功"),
+        (status = 200, description = "修改成功"),
     ),
     tag = "group"
 ))]
@@ -360,44 +360,57 @@ utoipa::path(
 pub async fn transfer_group_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
-    Query(params): Query<TransferGroupParams>,
+    Path(group): Path<Uuid>,
+    Query(params): Query<ManageGroupParams>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = User::find_by_id(payload.id).one(&state.conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
         payload.id
     )))?;
-    let _ = User::find_by_id(params.owner)
+    let g = Group::find_by_id(group)
         .one(&state.conn)
         .await?
-        .ok_or(AppError::NotFound(format!(
-            "cannot find user [{}]",
-            params.owner
-        )))?;
-    let g = Group::find_by_id(params.group)
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!(
-            "cannot find group [{}]",
-            params.group
-        )))?;
-    if g.owner != user.id {
-        return Err(AppError::Forbidden(
-            "only owner can transfer group".to_string(),
-        ));
+        .ok_or(AppError::NotFound(format!("cannot find group [{}]", group)))?;
+    if let Some(owner) = params.owner {
+        if g.owner != user.id {
+            return Err(AppError::Forbidden(
+                "only owner can transfer group".to_string(),
+            ));
+        }
+        if user.id == owner {
+            return Err(AppError::BadRequest("cannot transfer to self".to_string()));
+        }
+        let mut g = g.clone().into_active_model();
+        g.owner = ActiveValue::set(owner);
+        Group::update(g).exec(&state.conn).await?;
+        event!(Level::INFO, "transfer group [{}] to [{}]", group, owner);
     }
-    if user.id == params.owner {
-        return Err(AppError::BadRequest("cannot transfer to self".to_string()));
+    if let Some(admin) = params.admin {
+        let is_admin = Member::find()
+            .filter(member::Column::Group.eq(g.id))
+            .filter(member::Column::User.eq(user.id))
+            .one(&state.conn)
+            .await?
+            .ok_or(AppError::NotFound(format!("not in group [{}]", group)))?
+            .permission
+            == 1;
+        if !is_admin && g.owner != user.id {
+            return Err(AppError::Forbidden(
+                "only admin or owner can add admin".to_string(),
+            ));
+        }
+        let m = Member::find()
+            .filter(member::Column::Group.eq(g.id))
+            .filter(member::Column::User.eq(admin))
+            .one(&state.conn)
+            .await?;
+        let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", group)))?;
+        let mut m = m.into_active_model();
+        m.permission = ActiveValue::set(1);
+        Member::update(m).exec(&state.conn).await?;
+        event!(Level::INFO, "add admin [{}] to group [{}]", admin, group);
     }
-    let mut g = g.into_active_model();
-    g.owner = ActiveValue::set(params.owner);
-    Group::update(g).exec(&state.conn).await?;
-    event!(
-        Level::INFO,
-        "transfer group [{}] to [{}]",
-        params.group,
-        params.owner
-    );
     Ok(StatusCode::OK.into_response())
 }
 

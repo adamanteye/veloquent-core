@@ -228,7 +228,7 @@ pub fn router(state: AppState) -> Router {
             get(group::list_group_handler).route_layer(auth.clone()),
         )
         .route(
-            "/group/transfer",
+            "/group/manage/:id",
             put(group::transfer_group_handler).route_layer(auth.clone()),
         )
         .route(

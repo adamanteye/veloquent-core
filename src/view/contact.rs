@@ -5,6 +5,64 @@ use entity::{
     session, user,
 };
 
+impl contact::Model {
+    async fn from_user_and_ref_raw(
+        user: Uuid,
+        ref_user: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<Option<Self>, AppError> {
+        Ok(Contact::find()
+            .filter(
+                Condition::all()
+                    .add(contact::Column::User.eq(user))
+                    .add(contact::Column::RefUser.eq(ref_user)),
+            )
+            .one(conn)
+            .await?)
+    }
+    async fn from_user_and_ref(
+        user: Uuid,
+        ref_user: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<Self, AppError> {
+        Self::from_user_and_ref_raw(user, ref_user, conn)
+            .await?
+            .ok_or(AppError::NotFound(format!(
+                "cannot find contact [{ref_user}] of [{user}]"
+            )))
+    }
+    async fn is_user_and_ref_exist(
+        user: Uuid,
+        ref_user: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<(), AppError> {
+        if Self::from_user_and_ref_raw(user, ref_user, conn)
+            .await?
+            .is_some()
+        {
+            Err(AppError::Conflict(format!(
+                "contact relation exist [{user}:{ref_user}]"
+            )))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl From<(Uuid, Uuid, Option<String>, Uuid)> for contact::ActiveModel {
+    fn from((user, ref_user, alias, session): (Uuid, Uuid, Option<String>, Uuid)) -> Self {
+        Self {
+            id: ActiveValue::not_set(),
+            user: ActiveValue::set(user),
+            ref_user: ActiveValue::set(Some(ref_user)),
+            alias: ActiveValue::set(alias),
+            session: ActiveValue::set(session),
+            created_at: ActiveValue::not_set(),
+            category: ActiveValue::not_set(),
+        }
+    }
+}
+
 /// 发起添加好友
 #[cfg_attr(feature = "dev",
 utoipa::path(
@@ -28,48 +86,11 @@ pub async fn add_contact_handler(
     if user.id == con.id {
         return Err(AppError::BadRequest("cannot add self".to_string()));
     }
-    let l = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::User.eq(user.id))
-                .add(contact::Column::RefUser.eq(con.id)),
-        )
-        .one(&state.conn)
-        .await?;
-    if l.is_some() {
-        return Err(AppError::Conflict(format!(
-            "contact relation exist [{}:{}]",
-            user.id, con.id
-        )));
-    }
-    let l = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::User.eq(con.id))
-                .add(contact::Column::RefUser.eq(user.id)),
-        )
-        .one(&state.conn)
-        .await?;
-    if l.is_some() {
-        return Err(AppError::Conflict(format!(
-            "contact relation exist [{}:{}]",
-            con.id, user.id
-        )));
-    }
-    let s = session::ActiveModel {
-        id: ActiveValue::not_set(),
-        created_at: ActiveValue::not_set(),
-    };
+    contact::Model::is_user_and_ref_exist(user.id, con.id, &state.conn).await?;
+    contact::Model::is_user_and_ref_exist(con.id, user.id, &state.conn).await?;
+    let s = session::ActiveModel::default();
     let s = Session::insert(s).exec(&state.conn).await?.last_insert_id;
-    let c = contact::ActiveModel {
-        id: ActiveValue::not_set(),
-        user: ActiveValue::set(user.id),
-        ref_user: ActiveValue::set(Some(con.id)),
-        alias: ActiveValue::set(con.alias),
-        session: ActiveValue::set(s),
-        created_at: ActiveValue::not_set(),
-        category: ActiveValue::not_set(),
-    };
+    let c = contact::ActiveModel::from((user.id, con.id, con.alias, s));
     Contact::insert(c).exec(&state.conn).await?;
     event!(Level::DEBUG, "create new session [{}]", s);
     event!(Level::DEBUG, "user [{}] add [{}]", user.id, con.id);
@@ -97,33 +118,10 @@ pub async fn reject_contact_handler(
     payload: JWTPayload,
     Path(con): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    let c: contact::ActiveModel = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::User.eq(con))
-                .add(contact::Column::RefUser.eq(payload.id)),
-        )
-        .one(&state.conn)
+    let c: contact::ActiveModel = contact::Model::from_user_and_ref(con, payload.id, &state.conn)
         .await?
-        .ok_or(AppError::NotFound(format!(
-            "cannot find contact [{}] of [{}]",
-            payload.id, con
-        )))?
         .into();
-    let u: Option<contact::Model> = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::RefUser.eq(con))
-                .add(contact::Column::User.eq(payload.id)),
-        )
-        .one(&state.conn)
-        .await?;
-    if u.is_some() {
-        return Err(AppError::Conflict(format!(
-            "contact relation exist [{}:{}]",
-            payload.id, con
-        )));
-    }
+    contact::Model::is_user_and_ref_exist(payload.id, con, &state.conn).await?;
     Contact::delete(c).exec(&state.conn).await?;
     Ok(StatusCode::OK.into_response())
 }
@@ -158,31 +156,11 @@ pub async fn edit_contact_handler(
     Path(con): Path<Uuid>,
     Query(params): Query<EditContactParams>,
 ) -> Result<impl IntoResponse, AppError> {
-    let mut c: contact::ActiveModel = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::User.eq(payload.id))
-                .add(contact::Column::RefUser.eq(con)),
-        )
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!(
-            "cannot find contact [{}] of [{}]",
-            con, payload.id
-        )))?
-        .into();
-    let _ = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::RefUser.eq(payload.id))
-                .add(contact::Column::User.eq(con)),
-        )
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!(
-            "cannot find contact [{}] of [{}]",
-            payload.id, con
-        )))?;
+    let mut c: contact::ActiveModel =
+        contact::Model::from_user_and_ref(payload.id, con, &state.conn)
+            .await?
+            .into();
+    contact::Model::from_user_and_ref(con, payload.id, &state.conn).await?;
     c.alias = ActiveValue::set(params.alias);
     c.category = ActiveValue::set(params.category);
     Contact::update(c).exec(&state.conn).await?;
@@ -206,32 +184,14 @@ pub async fn delete_contact_handler(
     payload: JWTPayload,
     Path(con): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    let mut c: contact::ActiveModel = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::User.eq(payload.id))
-                .add(contact::Column::RefUser.eq(con)),
-        )
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!(
-            "cannot find contact [{}] of [{}]",
-            con, payload.id
-        )))?
-        .into();
-    let mut u: contact::ActiveModel = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::RefUser.eq(payload.id))
-                .add(contact::Column::User.eq(con)),
-        )
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!(
-            "cannot find contact [{}] of [{}]",
-            payload.id, con
-        )))?
-        .into();
+    let mut c: contact::ActiveModel =
+        contact::Model::from_user_and_ref(payload.id, con, &state.conn)
+            .await?
+            .into();
+    let mut u: contact::ActiveModel =
+        contact::Model::from_user_and_ref(con, payload.id, &state.conn)
+            .await?
+            .into();
     c.ref_user = ActiveValue::set(None);
     u.ref_user = ActiveValue::set(None);
     Contact::update(c).exec(&state.conn).await?;
@@ -261,46 +221,21 @@ pub async fn accept_contact_handler(
     if user.id == con.id {
         return Err(AppError::BadRequest("cannot accept self".to_string()));
     }
-    let l = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::User.eq(user.id))
-                .add(contact::Column::RefUser.eq(con.id)),
-        )
-        .one(&state.conn)
-        .await?;
-    if l.is_some() {
+    if contact::Model::from_user_and_ref_raw(user.id, con.id, &state.conn)
+        .await?
+        .is_some()
+    {
         return Err(AppError::Conflict(format!(
             "contact already accepted [{}:{}]",
             user.id, con.id
         )));
     }
-    let entry = Contact::find()
-        .filter(
-            Condition::all()
-                .add(contact::Column::User.eq(con.id))
-                .add(contact::Column::RefUser.eq(user.id)),
-        )
-        .one(&state.conn)
-        .await?
-        .ok_or(anyhow::anyhow!(
-            "contact not found [{}:{}]",
-            con.id,
-            user.id
-        ))?;
+    let entry = contact::Model::from_user_and_ref(con.id, user.id, &state.conn).await?;
     let s = Session::find_by_id(entry.session)
         .one(&state.conn)
         .await?
         .ok_or(anyhow::anyhow!("session not found [{}]", entry.session))?;
-    let c = contact::ActiveModel {
-        id: ActiveValue::not_set(),
-        user: ActiveValue::set(user.id),
-        ref_user: ActiveValue::set(Some(con.id)),
-        alias: ActiveValue::set(con.alias),
-        session: ActiveValue::set(s.id),
-        created_at: ActiveValue::not_set(),
-        category: ActiveValue::not_set(),
-    };
+    let c = contact::ActiveModel::from((user.id, con.id, con.alias, s.id));
     Contact::insert(c).exec(&state.conn).await?;
     Ok(StatusCode::OK.into_response())
 }

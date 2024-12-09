@@ -5,6 +5,45 @@ use entity::{
     session,
 };
 
+impl group::Model {
+    async fn from_uuid(id: Uuid, conn: &DatabaseConnection) -> Result<Self, AppError> {
+        Group::find_by_id(id)
+            .one(conn)
+            .await?
+            .ok_or(AppError::NotFound(format!("cannot find group [{id}]")))
+    }
+}
+
+impl member::Model {
+    async fn from_group_and_user(
+        group: Uuid,
+        user: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<Self, AppError> {
+        Member::find()
+            .filter(member::Column::Group.eq(group))
+            .filter(member::Column::User.eq(user))
+            .one(conn)
+            .await?
+            .ok_or(AppError::NotFound(format!(
+                "user [{user}] not in group [{group}]"
+            )))
+    }
+}
+
+impl From<(Uuid, Uuid)> for member::ActiveModel {
+    fn from(value: (Uuid, Uuid)) -> Self {
+        member::ActiveModel {
+            id: ActiveValue::not_set(),
+            group: ActiveValue::set(value.0),
+            user: ActiveValue::set(value.1),
+            permission: ActiveValue::set(0),
+            created_at: ActiveValue::not_set(),
+            anheften: ActiveValue::set(false),
+        }
+    }
+}
+
 /// 新建群聊请求
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 #[derive(Deserialize, Debug)]
@@ -67,10 +106,7 @@ impl GroupProfile {
         conn: &DatabaseConnection,
         user: Uuid,
     ) -> Result<Self, AppError> {
-        let g = Group::find_by_id(id)
-            .one(conn)
-            .await?
-            .ok_or(AppError::NotFound(format!("cannot find group [{id}]")))?;
+        let g = group::Model::from_uuid(id, conn).await?;
         let members = Member::find()
             .filter(member::Column::Group.eq(g.id))
             .filter(member::Column::Permission.ne(-1))
@@ -158,10 +194,7 @@ pub async fn create_group_handler(
     if members.len() < 2 {
         return Err(AppError::BadRequest("at least 2 members".to_string()));
     }
-    let s = session::ActiveModel {
-        id: ActiveValue::not_set(),
-        created_at: ActiveValue::not_set(),
-    };
+    let s = session::ActiveModel::default();
     let s = Session::insert(s).exec(&state.conn).await?.last_insert_id;
     let g = group::ActiveModel {
         id: ActiveValue::not_set(),
@@ -172,14 +205,7 @@ pub async fn create_group_handler(
     };
     let g = Group::insert(g).exec(&state.conn).await?.last_insert_id;
     for m in members {
-        let m = member::ActiveModel {
-            id: ActiveValue::not_set(),
-            group: ActiveValue::set(g),
-            user: ActiveValue::set(m),
-            permission: ActiveValue::set(0),
-            created_at: ActiveValue::not_set(),
-            anheften: ActiveValue::set(false),
-        };
+        let m = member::ActiveModel::from((g, m));
         Member::insert(m).exec(&state.conn).await?;
     }
     let g = GroupProfile::from_group_id(g, &state.conn, payload.id).await?;
@@ -206,16 +232,8 @@ pub async fn invite_group_handler(
     Json(users): Json<Vec<Uuid>>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = payload.to_user(&state.conn).await?;
-    let g = Group::find_by_id(id)
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!("cannot find group [{}]", id)))?;
-    let _ = Member::find()
-        .filter(member::Column::Group.eq(g.id))
-        .filter(member::Column::User.eq(user.id))
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!("inviter not in group [{}]", id)))?;
+    let g = group::Model::from_uuid(id, &state.conn).await?;
+    member::Model::from_group_and_user(g.id, user.id, &state.conn).await?;
     for u in users.into_iter() {
         let _ = User::find_by_id(u)
             .one(&state.conn)
@@ -229,14 +247,8 @@ pub async fn invite_group_handler(
         if m.is_some() {
             continue;
         }
-        let m = member::ActiveModel {
-            id: ActiveValue::not_set(),
-            group: ActiveValue::set(g.id),
-            user: ActiveValue::set(u),
-            permission: ActiveValue::set(-1),
-            created_at: ActiveValue::not_set(),
-            anheften: ActiveValue::set(false),
-        };
+        let mut m = member::ActiveModel::from((g.id, u));
+        m.permission = ActiveValue::set(-1);
         Member::insert(m).exec(&state.conn).await?;
     }
     Ok(StatusCode::OK.into_response())
@@ -272,17 +284,10 @@ pub async fn delete_group_handler(
     Query(params): Query<GroupDeleteParams>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = payload.to_user(&state.conn).await?;
-    let g = Group::find_by_id(id)
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!("cannot find group [{}]", id)))?;
+    let g = group::Model::from_uuid(id, &state.conn).await?;
     if let Some(u) = params.user {
-        let is_admin = Member::find()
-            .filter(member::Column::Group.eq(g.id))
-            .filter(member::Column::User.eq(user.id))
-            .one(&state.conn)
+        let is_admin = member::Model::from_group_and_user(g.id, user.id, &state.conn)
             .await?
-            .ok_or(AppError::NotFound(format!("not in group [{}]", id)))?
             .permission
             == 1;
         if !is_admin && g.owner != user.id {
@@ -290,20 +295,14 @@ pub async fn delete_group_handler(
                 "only admin or owner can delete member".to_string(),
             ));
         }
-        let m = Member::find()
-            .filter(member::Column::Group.eq(g.id))
-            .filter(member::Column::User.eq(u))
-            .one(&state.conn)
-            .await?;
-        let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", id)))?;
+        let m = member::Model::from_group_and_user(g.id, u, &state.conn).await?;
         let res: DeleteResult = Member::delete_by_id(m.id).exec(&state.conn).await?;
         if res.rows_affected == 0 {
             return Err(AppError::Server(anyhow::anyhow!(
-                "cannot delete member [{}]",
-                u
+                "cannot delete member [{u}]"
             )));
         }
-        event!(Level::INFO, "delete member [{}] from group [{}]", u, id);
+        event!(Level::INFO, "delete member [{u}] from group [{id}]");
     } else {
         if g.owner != user.id {
             return Err(AppError::Forbidden(
@@ -313,11 +312,10 @@ pub async fn delete_group_handler(
         let res: DeleteResult = Group::delete_by_id(id).exec(&state.conn).await?;
         if res.rows_affected == 0 {
             return Err(AppError::Server(anyhow::anyhow!(
-                "cannot delete group [{}]",
-                id
+                "cannot delete group [{id}]",
             )));
         }
-        event!(Level::INFO, "delete group [{}]", id);
+        event!(Level::INFO, "delete group [{id}]",);
     }
     Ok(StatusCode::NO_CONTENT.into_response())
 }
@@ -352,10 +350,7 @@ pub async fn approve_group_handler(
     Query(params): Query<ApproveMemberParams>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = payload.to_user(&state.conn).await?;
-    let g = Group::find_by_id(group)
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!("cannot find group [{group}]")))?;
+    let g = group::Model::from_uuid(group, &state.conn).await?;
     let is_admin = Member::is_admin(group, user.id, &state.conn).await?;
     if !is_admin && g.owner != user.id {
         return Err(AppError::Forbidden(
@@ -364,12 +359,7 @@ pub async fn approve_group_handler(
     }
     let deny = params.deny.unwrap_or(false);
     if let Some(member) = params.member {
-        let m = Member::find()
-            .filter(member::Column::Group.eq(g.id))
-            .filter(member::Column::User.eq(member))
-            .one(&state.conn)
-            .await?;
-        let m = m.ok_or(AppError::NotFound(format!("not in group [{group}]")))?;
+        let m = member::Model::from_group_and_user(g.id, member, &state.conn).await?;
         return if m.permission != -1 {
             Err(AppError::BadRequest(format!(
                 "member [{member}] already in group [{group}]"
@@ -447,10 +437,7 @@ pub async fn manage_group_handler(
     Query(params): Query<ManageGroupParams>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = payload.to_user(&state.conn).await?;
-    let g = Group::find_by_id(group)
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!("cannot find group [{}]", group)))?;
+    let g = group::Model::from_uuid(group, &state.conn).await?;
     if let Some(owner) = params.owner {
         if g.owner != user.id {
             return Err(AppError::Forbidden(
@@ -463,19 +450,14 @@ pub async fn manage_group_handler(
         let mut g = g.clone().into_active_model();
         g.owner = ActiveValue::set(owner);
         Group::update(g).exec(&state.conn).await?;
-        event!(Level::INFO, "transfer group [{}] to [{}]", group, owner);
+        event!(Level::INFO, "transfer group [{group}] to [{owner}]");
     }
     let remove = params.remove.unwrap_or(false);
     if let Some(admin) = params.admin {
         if g.owner != user.id {
             return Err(AppError::Forbidden("only owner can edit admin".to_string()));
         }
-        let m = Member::find()
-            .filter(member::Column::Group.eq(g.id))
-            .filter(member::Column::User.eq(admin))
-            .one(&state.conn)
-            .await?;
-        let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", group)))?;
+        let m = member::Model::from_group_and_user(g.id, admin, &state.conn).await?;
         let mut m = m.into_active_model();
         m.permission = ActiveValue::set(if remove { 0 } else { 1 });
         Member::update(m).exec(&state.conn).await?;
@@ -514,34 +496,17 @@ pub async fn manage_group_handler(
                     Member::delete_by_id(m.id).exec(&state.conn).await?;
                 } else {
                     return Err(AppError::BadRequest(format!(
-                        "[{}] already in group [{}]",
-                        member, g.id
+                        "[{member}] already in group [{}]",
+                        g.id
                     )));
                 }
-                event!(
-                    Level::INFO,
-                    "remove member [{}] from group [{}]",
-                    member,
-                    group
-                );
+                event!(Level::INFO, "remove member [{member}] from group [{group}]");
                 Ok(StatusCode::NO_CONTENT.into_response())
             }
             None => {
-                let m = member::ActiveModel {
-                    id: ActiveValue::not_set(),
-                    group: ActiveValue::set(g.id),
-                    user: ActiveValue::set(member),
-                    permission: ActiveValue::set(0),
-                    created_at: ActiveValue::not_set(),
-                    anheften: ActiveValue::set(false),
-                };
+                let m = member::ActiveModel::from((g.id, member));
                 Member::insert(m).exec(&state.conn).await?;
-                event!(
-                    Level::INFO,
-                    "add member [{}] into group [{}]",
-                    member,
-                    group
-                );
+                event!(Level::INFO, "add member [{member}] into group [{group}]");
                 Ok(StatusCode::OK.into_response())
             }
         };
@@ -578,16 +543,8 @@ pub async fn pin_group_handler(
     Query(params): Query<PinGroupParams>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = payload.to_user(&state.conn).await?;
-    let g = Group::find_by_id(id)
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!("cannot find group [{}]", id)))?;
-    let m = Member::find()
-        .filter(member::Column::Group.eq(g.id))
-        .filter(member::Column::User.eq(user.id))
-        .one(&state.conn)
-        .await?;
-    let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", id)))?;
+    let g = group::Model::from_uuid(id, &state.conn).await?;
+    let m = member::Model::from_group_and_user(g.id, user.id, &state.conn).await?;
     let mut m = m.into_active_model();
     if let Some(pin) = params.pin {
         m.anheften = ActiveValue::set(pin);
@@ -617,16 +574,8 @@ pub async fn exit_group_handler(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = payload.to_user(&state.conn).await?;
-    let g = Group::find_by_id(id)
-        .one(&state.conn)
-        .await?
-        .ok_or(AppError::NotFound(format!("cannot find group [{}]", id)))?;
-    let m = Member::find()
-        .filter(member::Column::Group.eq(g.id))
-        .filter(member::Column::User.eq(user.id))
-        .one(&state.conn)
-        .await?;
-    let m = m.ok_or(AppError::NotFound(format!("user not in group [{}]", id)))?;
+    let g = group::Model::from_uuid(id, &state.conn).await?;
+    let m = member::Model::from_group_and_user(g.id, user.id, &state.conn).await?;
     if g.owner == user.id {
         return Err(AppError::Forbidden(
             "owner cannot exit group before transferring the group".to_string(),
@@ -635,10 +584,27 @@ pub async fn exit_group_handler(
     let res: DeleteResult = Member::delete_by_id(m.id).exec(&state.conn).await?;
     if res.rows_affected == 0 {
         return Err(AppError::Server(anyhow::anyhow!(
-            "cannot exit group [{}]",
-            id
+            "cannot exit group [{id}]",
         )));
     }
-    event!(Level::INFO, "exit group [{}]", id);
+    event!(Level::INFO, "user [{}] exit group [{id}]", user.id);
     Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_active_value_is_not_set() {
+        let v = session::ActiveModel::default();
+        assert_eq!(
+            v,
+            session::ActiveModel {
+                id: ActiveValue::not_set(),
+                created_at: ActiveValue::not_set(),
+            }
+        );
+    }
 }

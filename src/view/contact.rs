@@ -81,11 +81,9 @@ pub async fn add_contact_handler(
     Contact::insert(c).exec(&state.conn).await?;
     event!(Level::DEBUG, "create new session [{}]", s);
     event!(Level::DEBUG, "user [{}] add [{}]", user.id, con.id);
-    let s = state.clone();
     tokio::task::spawn(async move {
-        state
-            .ws_pool
-            .notify(con.id, notify_new_contacts(s, con.id).await)
+        let msg = notify_new_contacts_hook(state.conn, con.id).await;
+        state.ws_pool.notify(con.id, msg).await;
     });
     Ok(StatusCode::OK.into_response())
 }
@@ -405,17 +403,17 @@ impl ContactList {
 }
 
 /// 推送好友申请列表
-#[instrument(skip(state))]
-pub async fn notify_new_contacts(
-    state: AppState,
+#[instrument(skip(conn))]
+pub async fn notify_new_contacts_hook(
+    conn: DatabaseConnection,
     user_id: Uuid,
 ) -> Result<WebSocketMessage, AppError> {
-    let user: Option<user::Model> = User::find_by_id(user_id).one(&state.conn).await?;
+    let user: Option<user::Model> = User::find_by_id(user_id).one(&conn).await?;
     let user = user.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
         user_id
     )))?;
-    let data = ContactList::query_new_contact(user, &state.conn).await?;
+    let data = ContactList::query_new_contact(user, &conn).await?;
     event!(Level::DEBUG, "get new contact list of user [{}]", user_id);
     let data = Json(data);
     Ok(WebSocketMessage::Text(format!("{:?}", Json(data))))

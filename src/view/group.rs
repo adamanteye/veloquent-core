@@ -73,7 +73,7 @@ impl GroupProfile {
             .ok_or(AppError::NotFound(format!("cannot find group [{id}]")))?;
         let members = Member::find()
             .filter(member::Column::Group.eq(g.id))
-            .filter(member::Column::Permission.eq(0))
+            .filter(member::Column::Permission.ne(-1))
             .all(conn)
             .await?;
         let mut pin = false;

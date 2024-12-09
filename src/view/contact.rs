@@ -23,11 +23,7 @@ pub async fn add_contact_handler(
     payload: JWTPayload,
     Path(contact): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let con: Option<user::Model> = User::find_by_id(contact).one(&state.conn).await?;
     let con = con.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
@@ -264,11 +260,7 @@ pub async fn accept_contact_handler(
     payload: JWTPayload,
     Path(contact): Path<Uuid>,
 ) -> Result<Response, AppError> {
-    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let con: Option<user::Model> = User::find_by_id(contact).one(&state.conn).await?;
     let con = con.ok_or(AppError::NotFound(format!(
         "cannot find user [{}]",
@@ -440,11 +432,7 @@ pub async fn get_new_contacts_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
 ) -> Result<Json<ContactList>, AppError> {
-    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let data = ContactList::query_new_contact(user, &state.conn).await?;
     event!(
         Level::DEBUG,
@@ -479,11 +467,7 @@ pub async fn get_contacts_handler(
     payload: JWTPayload,
     Query(params): Query<CategoryParams>,
 ) -> Result<Json<ContactList>, AppError> {
-    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let mut data = ContactList::query_contact(user, &state.conn).await?;
     if let Some(category) = params.category {
         let items = data
@@ -517,11 +501,7 @@ pub async fn get_pending_contacts_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
 ) -> Result<Json<ContactList>, AppError> {
-    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let data = ContactList::query_pending_contact(user, &state.conn).await?;
     event!(
         Level::DEBUG,
@@ -546,11 +526,7 @@ pub async fn get_categories_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
 ) -> Result<Json<Vec<String>>, AppError> {
-    let user: Option<user::Model> = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let categories = Contact::find()
         .filter(contact::Column::User.eq(user.id))
         .all(&state.conn)

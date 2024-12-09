@@ -120,11 +120,7 @@ pub async fn list_group_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
 ) -> Result<Json<Vec<GroupProfile>>, AppError> {
-    let user = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let groups = Member::find()
         .filter(member::Column::User.eq(user.id))
         .all(&state.conn)
@@ -154,11 +150,7 @@ pub async fn create_group_handler(
     payload: JWTPayload,
     Json(req): Json<GroupPost>,
 ) -> Result<Json<GroupProfile>, AppError> {
-    let user = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let mut members = req.members;
     members.push(user.id);
     members.sort();
@@ -213,11 +205,7 @@ pub async fn invite_group_handler(
     Path(id): Path<Uuid>,
     Json(users): Json<Vec<Uuid>>,
 ) -> Result<impl IntoResponse, AppError> {
-    let user = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let g = Group::find_by_id(id)
         .one(&state.conn)
         .await?
@@ -283,11 +271,7 @@ pub async fn delete_group_handler(
     Path(id): Path<Uuid>,
     Query(params): Query<GroupDeleteParams>,
 ) -> Result<impl IntoResponse, AppError> {
-    let user = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let g = Group::find_by_id(id)
         .one(&state.conn)
         .await?
@@ -367,11 +351,7 @@ pub async fn approve_group_handler(
     Path(group): Path<Uuid>,
     Query(params): Query<ApproveMemberParams>,
 ) -> Result<impl IntoResponse, AppError> {
-    let user = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let g = Group::find_by_id(group)
         .one(&state.conn)
         .await?
@@ -466,11 +446,7 @@ pub async fn manage_group_handler(
     Path(group): Path<Uuid>,
     Query(params): Query<ManageGroupParams>,
 ) -> Result<impl IntoResponse, AppError> {
-    let user = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let g = Group::find_by_id(group)
         .one(&state.conn)
         .await?
@@ -601,11 +577,7 @@ pub async fn pin_group_handler(
     Path(id): Path<Uuid>,
     Query(params): Query<PinGroupParams>,
 ) -> Result<impl IntoResponse, AppError> {
-    let user = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let g = Group::find_by_id(id)
         .one(&state.conn)
         .await?
@@ -644,11 +616,7 @@ pub async fn exit_group_handler(
     payload: JWTPayload,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    let user = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let g = Group::find_by_id(id)
         .one(&state.conn)
         .await?

@@ -34,6 +34,22 @@ pub struct JWTPayload {
     pub exp: u64,
 }
 
+impl JWTPayload {
+    pub(super) async fn to_user(
+        &self,
+        conn: &sea_orm::DatabaseConnection,
+    ) -> Result<super::entity::user::Model, AppError> {
+        use sea_orm::EntityTrait;
+        super::entity::prelude::User::find_by_id(self.id)
+            .one(conn)
+            .await?
+            .ok_or(AppError::NotFound(format!(
+                "cannot find user [{}]",
+                self.id
+            )))
+    }
+}
+
 impl From<JWTPayload> for String {
     fn from(payload: JWTPayload) -> Self {
         jsonwebtoken::encode(

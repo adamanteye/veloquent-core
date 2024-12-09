@@ -340,6 +340,81 @@ pub async fn delete_group_handler(
 
 #[cfg_attr(feature = "dev", derive(IntoParams))]
 #[derive(Deserialize, Debug)]
+pub(super) struct ApproveMemberParams {
+    /// 群成员
+    member: Option<Uuid>,
+    /// 是否拒绝
+    deny: Option<bool>,
+}
+
+/// 群成员审批
+///
+/// 允许或拒绝加入群聊的请求
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    put,
+    path = "/group/approve/{id}",
+    params(("id" = Uuid, Path, description = "群聊的唯一主键"), ApproveMemberParams),
+    responses(
+        (status = 200, description = "修改成功"),
+    ),
+    tag = "group"
+))]
+#[instrument(skip(state))]
+pub async fn approve_group_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(group): Path<Uuid>,
+    Query(params): Query<ApproveMemberParams>,
+) -> Result<impl IntoResponse, AppError> {
+    let user = User::find_by_id(payload.id).one(&state.conn).await?;
+    let user = user.ok_or(AppError::NotFound(format!(
+        "cannot find user [{}]",
+        payload.id
+    )))?;
+    let g = Group::find_by_id(group)
+        .one(&state.conn)
+        .await?
+        .ok_or(AppError::NotFound(format!("cannot find group [{group}]")))?;
+    let is_admin = Member::is_admin(group, user.id, &state.conn).await?;
+    if !is_admin && g.owner != user.id {
+        return Err(AppError::Forbidden(
+            "only admin or owner can approve member".to_string(),
+        ));
+    }
+    let deny = params.deny.unwrap_or(false);
+    if let Some(member) = params.member {
+        let m = Member::find()
+            .filter(member::Column::Group.eq(g.id))
+            .filter(member::Column::User.eq(member))
+            .one(&state.conn)
+            .await?;
+        let m = m.ok_or(AppError::NotFound(format!("not in group [{group}]")))?;
+        return if m.permission != -1 {
+            Err(AppError::BadRequest(format!(
+                "member [{member}] already in group [{group}]"
+            )))
+        } else if deny {
+            let res: DeleteResult = Member::delete_by_id(m.id).exec(&state.conn).await?;
+            if res.rows_affected == 0 {
+                Err(AppError::Server(anyhow::anyhow!(
+                    "cannot delete member [{member}]"
+                )))
+            } else {
+                Ok(StatusCode::NO_CONTENT.into_response())
+            }
+        } else {
+            let mut m = m.into_active_model();
+            m.permission = ActiveValue::set(0);
+            Member::update(m).exec(&state.conn).await?;
+            Ok(StatusCode::OK.into_response())
+        };
+    }
+    Ok(StatusCode::OK.into_response())
+}
+
+#[cfg_attr(feature = "dev", derive(IntoParams))]
+#[derive(Deserialize, Debug)]
 pub(super) struct ManageGroupParams {
     owner: Option<Uuid>,
     admin: Option<Uuid>,
@@ -351,7 +426,29 @@ pub(super) struct ManageGroupParams {
     member: Option<Uuid>,
 }
 
-/// 转让群主身份或设置管理员
+impl Member {
+    async fn is_admin(
+        group: Uuid,
+        user: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<bool, AppError> {
+        let m = Member::find()
+            .filter(member::Column::Group.eq(group))
+            .filter(member::Column::User.eq(user))
+            .one(conn)
+            .await?
+            .ok_or(AppError::NotFound(format!(
+                "member [{user}] not in [{group}]",
+            )))?;
+        Ok(m.permission == 1)
+    }
+}
+
+/// 群聊管理
+///
+/// 转移群主, 添加或移除管理员
+///
+/// 添加或移除群成员
 #[cfg_attr(feature = "dev",
 utoipa::path(
     put,
@@ -414,14 +511,7 @@ pub async fn manage_group_handler(
         );
     }
     if let Some(member) = params.member {
-        let is_admin = Member::find()
-            .filter(member::Column::Group.eq(g.id))
-            .filter(member::Column::User.eq(user.id))
-            .one(&state.conn)
-            .await?
-            .ok_or(AppError::NotFound(format!("not in group [{}]", group)))?
-            .permission
-            == 1;
+        let is_admin = Member::is_admin(group, user.id, &state.conn).await?;
         if !is_admin && g.owner != user.id {
             return Err(AppError::Forbidden(
                 "only admin or owner can edit member".to_string(),

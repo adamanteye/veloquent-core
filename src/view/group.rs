@@ -343,6 +343,8 @@ pub async fn delete_group_handler(
 pub(super) struct ManageGroupParams {
     owner: Option<Uuid>,
     admin: Option<Uuid>,
+    /// 为空的时候默认为 `false`
+    remove: Option<bool>,
 }
 
 /// 转让群主身份或设置管理员
@@ -357,7 +359,7 @@ utoipa::path(
     tag = "group"
 ))]
 #[instrument(skip(state))]
-pub async fn transfer_group_handler(
+pub async fn manage_group_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
     Path(group): Path<Uuid>,
@@ -387,6 +389,7 @@ pub async fn transfer_group_handler(
         event!(Level::INFO, "transfer group [{}] to [{}]", group, owner);
     }
     if let Some(admin) = params.admin {
+        let remove = params.remove.unwrap_or(false);
         let is_admin = Member::find()
             .filter(member::Column::Group.eq(g.id))
             .filter(member::Column::User.eq(user.id))
@@ -407,9 +410,14 @@ pub async fn transfer_group_handler(
             .await?;
         let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", group)))?;
         let mut m = m.into_active_model();
-        m.permission = ActiveValue::set(1);
+        m.permission = ActiveValue::set(if remove { 0 } else { 1 });
         Member::update(m).exec(&state.conn).await?;
-        event!(Level::INFO, "add admin [{}] to group [{}]", admin, group);
+        event!(
+            Level::INFO,
+            "{} admin [{admin}] {} group [{group}]",
+            if remove { "remove" } else { "add" },
+            if remove { "off" } else { "into" },
+        );
     }
     Ok(StatusCode::OK.into_response())
 }

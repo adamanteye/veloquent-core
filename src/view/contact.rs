@@ -1,7 +1,7 @@
 use super::*;
 use entity::{
     contact,
-    prelude::{Contact, Session, User},
+    prelude::{Contact, Session},
     session, user,
 };
 
@@ -24,11 +24,7 @@ pub async fn add_contact_handler(
     Path(contact): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = payload.to_user(&state.conn).await?;
-    let con: Option<user::Model> = User::find_by_id(contact).one(&state.conn).await?;
-    let con = con.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        contact
-    )))?;
+    let con = user::Model::from_uuid(contact, &state.conn).await?;
     if user.id == con.id {
         return Err(AppError::BadRequest("cannot add self".to_string()));
     }
@@ -78,7 +74,7 @@ pub async fn add_contact_handler(
     event!(Level::DEBUG, "create new session [{}]", s);
     event!(Level::DEBUG, "user [{}] add [{}]", user.id, con.id);
     tokio::task::spawn(async move {
-        let msg = notify_new_contacts_hook(state.conn, con.id).await;
+        let msg = notify_new_contacts_hook(&state.conn, con.id).await;
         state.ws_pool.notify(con.id, msg).await;
     });
     Ok(StatusCode::OK.into_response())
@@ -261,11 +257,7 @@ pub async fn accept_contact_handler(
     Path(contact): Path<Uuid>,
 ) -> Result<Response, AppError> {
     let user = payload.to_user(&state.conn).await?;
-    let con: Option<user::Model> = User::find_by_id(contact).one(&state.conn).await?;
-    let con = con.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        contact
-    )))?;
+    let con = user::Model::from_uuid(contact, &state.conn).await?;
     if user.id == con.id {
         return Err(AppError::BadRequest("cannot accept self".to_string()));
     }
@@ -401,14 +393,10 @@ impl ContactList {
 /// 推送好友申请列表
 #[instrument(skip(conn))]
 pub async fn notify_new_contacts_hook(
-    conn: DatabaseConnection,
+    conn: &DatabaseConnection,
     user_id: Uuid,
 ) -> Result<WebSocketMessage, AppError> {
-    let user: Option<user::Model> = User::find_by_id(user_id).one(&conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user [{}]",
-        user_id
-    )))?;
+    let user = user::Model::from_uuid(user_id, conn).await?;
     let data = ContactList::query_new_contact(user, &conn).await?;
     event!(Level::DEBUG, "get new contact list of user [{}]", user_id);
     let data = Json(data);

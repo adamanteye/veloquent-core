@@ -33,6 +33,15 @@ pub struct RegisterProfile {
     pub email: String,
 }
 
+impl user::Model {
+    pub(crate) async fn from_uuid(id: Uuid, conn: &DatabaseConnection) -> Result<Self, AppError> {
+        User::find_by_id(id)
+            .one(conn)
+            .await?
+            .ok_or(AppError::NotFound(format!("cannot find user [{id}]")))
+    }
+}
+
 impl TryFrom<RegisterProfile> for user::ActiveModel {
     type Error = AppError;
     fn try_from(p: RegisterProfile) -> Result<Self, Self::Error> {

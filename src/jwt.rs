@@ -39,14 +39,7 @@ impl JWTPayload {
         &self,
         conn: &sea_orm::DatabaseConnection,
     ) -> Result<super::entity::user::Model, AppError> {
-        use sea_orm::EntityTrait;
-        super::entity::prelude::User::find_by_id(self.id)
-            .one(conn)
-            .await?
-            .ok_or(AppError::NotFound(format!(
-                "cannot find user [{}]",
-                self.id
-            )))
+        super::entity::user::Model::from_uuid(self.id, conn).await
     }
 }
 

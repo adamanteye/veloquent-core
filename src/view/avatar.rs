@@ -33,11 +33,7 @@ pub async fn upload_avatar_handler(
             avatar.typ
         )));
     }
-    let user = User::find_by_id(payload.id).one(&state.conn).await?;
-    let user = user.ok_or(AppError::NotFound(format!(
-        "cannot find user: [{}]",
-        payload.id
-    )))?;
+    let user = payload.to_user(&state.conn).await?;
     let mut user: user::ActiveModel = user.into();
     let uuid = save_file(&avatar, &state.conn).await?;
     user.avatar = ActiveValue::set(Some(uuid));

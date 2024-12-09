@@ -347,6 +347,8 @@ pub(super) struct ManageGroupParams {
     ///
     /// 字段为空的时候默认 `false`
     remove: Option<bool>,
+    /// 添加或移除群成员
+    member: Option<Uuid>,
 }
 
 /// 转让群主身份或设置管理员
@@ -390,8 +392,8 @@ pub async fn manage_group_handler(
         Group::update(g).exec(&state.conn).await?;
         event!(Level::INFO, "transfer group [{}] to [{}]", group, owner);
     }
+    let remove = params.remove.unwrap_or(false);
     if let Some(admin) = params.admin {
-        let remove = params.remove.unwrap_or(false);
         if g.owner != user.id {
             return Err(AppError::Forbidden("only owner can edit admin".to_string()));
         }
@@ -410,6 +412,73 @@ pub async fn manage_group_handler(
             if remove { "remove" } else { "add" },
             if remove { "off" } else { "into" },
         );
+    }
+    if let Some(member) = params.member {
+        let is_admin = Member::find()
+            .filter(member::Column::Group.eq(g.id))
+            .filter(member::Column::User.eq(user.id))
+            .one(&state.conn)
+            .await?
+            .ok_or(AppError::NotFound(format!("not in group [{}]", group)))?
+            .permission
+            == 1;
+        if !is_admin && g.owner != user.id {
+            return Err(AppError::Forbidden(
+                "only admin or owner can edit member".to_string(),
+            ));
+        }
+        let m = Member::find()
+            .filter(member::Column::Group.eq(g.id))
+            .filter(member::Column::User.eq(member))
+            .one(&state.conn)
+            .await?;
+        return match m {
+            Some(m) => {
+                if m.permission == 1 && is_admin && remove {
+                    return Err(AppError::Forbidden(
+                        "only owner can remove admin".to_string(),
+                    ));
+                }
+                if remove {
+                    if member == g.owner {
+                        return Err(AppError::BadRequest("cannot remove owner".to_string()));
+                    } else if member == user.id {
+                        return Err(AppError::BadRequest("cannot remove self".to_string()));
+                    }
+                    Member::delete_by_id(m.id).exec(&state.conn).await?;
+                } else {
+                    return Err(AppError::BadRequest(format!(
+                        "[{}] already in group [{}]",
+                        member, g.id
+                    )));
+                }
+                event!(
+                    Level::INFO,
+                    "remove member [{}] from group [{}]",
+                    member,
+                    group
+                );
+                Ok(StatusCode::NO_CONTENT.into_response())
+            }
+            None => {
+                let m = member::ActiveModel {
+                    id: ActiveValue::not_set(),
+                    group: ActiveValue::set(g.id),
+                    user: ActiveValue::set(member),
+                    permission: ActiveValue::set(0),
+                    created_at: ActiveValue::not_set(),
+                    anheften: ActiveValue::set(false),
+                };
+                Member::insert(m).exec(&state.conn).await?;
+                event!(
+                    Level::INFO,
+                    "add member [{}] into group [{}]",
+                    member,
+                    group
+                );
+                Ok(StatusCode::OK.into_response())
+            }
+        };
     }
     Ok(StatusCode::OK.into_response())
 }

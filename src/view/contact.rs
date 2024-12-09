@@ -344,6 +344,8 @@ pub struct Chat {
     session: Uuid,
     /// 分类
     category: Option<String>,
+    /// 备注
+    alias: Option<String>,
 }
 
 #[derive(Debug, FromQueryResult)]
@@ -351,6 +353,7 @@ struct UserUuid {
     user: Uuid,
     session: Uuid,
     category: Option<String>,
+    alias: Option<String>,
 }
 
 impl From<UserUuid> for Chat {
@@ -359,6 +362,7 @@ impl From<UserUuid> for Chat {
             id: u.user,
             session: u.session,
             category: u.category,
+            alias: u.alias,
         }
     }
 }
@@ -366,7 +370,7 @@ impl From<UserUuid> for Chat {
 impl ContactList {
     async fn query_contact(user: user::Model, db: &DatabaseConnection) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT a.ref_user AS user, a.session, a.category FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
+                    "SELECT a.ref_user AS user, a.session, a.category, a.alias FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts.into_iter().map(UserUuid::into).collect();
         let num = items.len() as i32;
         Ok(Self { num, items })
@@ -377,7 +381,7 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-            "SELECT contact.user, contact.session, contact.category FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session, contact.category FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
+            "SELECT contact.user, contact.session, contact.category, contact.alias FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session, contact.category, contact.alias FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts
             .into_iter()
             .map(|c| {
@@ -395,7 +399,7 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT contact.ref_user AS user, contact.session, contact.category FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session, contact.category FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
+                    "SELECT contact.ref_user AS user, contact.session, contact.category, contact.alias FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session, contact.category, contact.alias FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts.into_iter().map(UserUuid::into).collect();
         let num = items.len() as i32;
         Ok(Self { num, items })

@@ -33,6 +33,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(Group::Owner).uuid().not_null())
                     .col(ColumnDef::new(Group::Session).uuid().not_null())
+                    .col(ColumnDef::new(Group::Notice).uuid().not_null())
                     .col(ColumnDef::new(Group::Name).string())
                     .to_owned(),
             )
@@ -56,10 +57,28 @@ impl MigrationTrait for Migration {
                     .name("FK_GROUP_SESSION_SESSION_ID")
                     .to_owned(),
             )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .from(Group::Table, Group::Notice)
+                    .to(Session::Table, Session::Id)
+                    .on_delete(ForeignKeyAction::Cascade)
+                    .name("FK_GROUP_NOTICE_SESSION_ID")
+                    .to_owned(),
+            )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_foreign_key(
+                ForeignKey::drop()
+                    .name("FK_NOTICE_SESSION_SESSION_ID")
+                    .table(Group::Table)
+                    .to_owned(),
+            )
+            .await?;
         manager
             .drop_foreign_key(
                 ForeignKey::drop()
@@ -90,4 +109,5 @@ pub enum Group {
     CreatedAt,
     Owner,
     Session,
+    Notice,
 }

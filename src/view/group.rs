@@ -196,11 +196,14 @@ pub async fn create_group_handler(
     }
     let s = session::ActiveModel::default();
     let s = Session::insert(s).exec(&state.conn).await?.last_insert_id;
+    let n = session::ActiveModel::default();
+    let n = Session::insert(n).exec(&state.conn).await?.last_insert_id;
     let g = group::ActiveModel {
         id: ActiveValue::not_set(),
         name: ActiveValue::set(req.name),
         owner: ActiveValue::set(user.id),
         session: ActiveValue::set(s),
+        notice: ActiveValue::set(n),
         created_at: ActiveValue::not_set(),
     };
     let g = Group::insert(g).exec(&state.conn).await?.last_insert_id;

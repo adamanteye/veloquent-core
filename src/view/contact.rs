@@ -148,7 +148,7 @@ pub(super) struct EditContactParams {
 /// 修改好友备注或分组
 #[cfg_attr(feature = "dev",
 utoipa::path(
-    delete,
+    put,
     path = "/contact/edit/{id}",
     params(
         ("id" = Uuid, Path, description = "要编辑的用户主键"),

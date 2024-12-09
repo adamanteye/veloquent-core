@@ -343,7 +343,9 @@ pub async fn delete_group_handler(
 pub(super) struct ManageGroupParams {
     owner: Option<Uuid>,
     admin: Option<Uuid>,
-    /// 为空的时候默认为 `false`
+    /// 是否移除管理员
+    ///
+    /// 字段为空的时候默认 `false`
     remove: Option<bool>,
 }
 
@@ -390,18 +392,8 @@ pub async fn manage_group_handler(
     }
     if let Some(admin) = params.admin {
         let remove = params.remove.unwrap_or(false);
-        let is_admin = Member::find()
-            .filter(member::Column::Group.eq(g.id))
-            .filter(member::Column::User.eq(user.id))
-            .one(&state.conn)
-            .await?
-            .ok_or(AppError::NotFound(format!("not in group [{}]", group)))?
-            .permission
-            == 1;
-        if !is_admin && g.owner != user.id {
-            return Err(AppError::Forbidden(
-                "only admin or owner can add admin".to_string(),
-            ));
+        if g.owner != user.id {
+            return Err(AppError::Forbidden("only owner can edit admin".to_string()));
         }
         let m = Member::find()
             .filter(member::Column::Group.eq(g.id))
@@ -507,7 +499,12 @@ pub async fn exit_group_handler(
         .filter(member::Column::User.eq(user.id))
         .one(&state.conn)
         .await?;
-    let m = m.ok_or(AppError::NotFound(format!("not in group [{}]", id)))?;
+    let m = m.ok_or(AppError::NotFound(format!("user not in group [{}]", id)))?;
+    if g.owner == user.id {
+        return Err(AppError::Forbidden(
+            "owner cannot exit group before transferring the group".to_string(),
+        ));
+    }
     let res: DeleteResult = Member::delete_by_id(m.id).exec(&state.conn).await?;
     if res.rows_affected == 0 {
         return Err(AppError::Server(anyhow::anyhow!(

@@ -22,7 +22,7 @@ use utoipa::OpenApi;
         group::delete_group_handler, group::list_group_handler,
         group::manage_group_handler, group::exit_group_handler,
         group::pin_group_handler, group::invite_group_handler,
-        group::approve_group_handler,
+        group::approve_group_handler, group::monitor_group_handler,
         history::get_history_handler,
         avatar::upload_handler, avatar::upload_avatar_handler,
         download::download_handler,

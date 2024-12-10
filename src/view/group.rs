@@ -12,6 +12,18 @@ impl group::Model {
             .await?
             .ok_or(AppError::NotFound(format!("cannot find group [{id}]")))
     }
+
+    async fn get_pending_members(
+        group: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<Vec<Uuid>, AppError> {
+        let members = Member::find()
+            .filter(member::Column::Group.eq(group))
+            .filter(member::Column::Permission.eq(-1))
+            .all(conn)
+            .await?;
+        Ok(members.into_iter().map(|m| m.user).collect())
+    }
 }
 
 impl member::Model {
@@ -417,6 +429,39 @@ impl Member {
             )))?;
         Ok(m.permission == 1)
     }
+}
+
+/// 群聊管理
+///
+/// 获取当前申请加入群聊的用户列表
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    get,
+    path = "/group/manage/{id}",
+    params(("id" = Uuid, Path, description = "群聊的唯一主键")),
+    responses(
+        (status = 200, description = "获取成功", body = Vec<Uuid>),
+        (status = 403, description = "非管理员或群主", body = AppErrorResponse),
+    ),
+    tag = "group"
+))]
+#[instrument(skip(state))]
+pub async fn monitor_group_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+    Path(group): Path<Uuid>,
+) -> Result<Json<Vec<Uuid>>, AppError> {
+    let user = payload.to_user(&state.conn).await?;
+    let g = group::Model::from_uuid(group, &state.conn).await?;
+    let is_admin = Member::is_admin(group, user.id, &state.conn).await?;
+    if !is_admin && g.owner != user.id {
+        return Err(AppError::Forbidden(
+            "only admin or owner can view applications".to_string(),
+        ));
+    }
+    Ok(Json(
+        group::Model::get_pending_members(group, &state.conn).await?,
+    ))
 }
 
 /// 群聊管理

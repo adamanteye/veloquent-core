@@ -161,7 +161,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/group/manage/:id",
-            put(group::manage_group_handler).route_layer(auth.clone()),
+            get(group::monitor_group_handler)
+                .put(group::manage_group_handler)
+                .route_layer(auth.clone()),
         )
         .route(
             "/group/exit/:id",

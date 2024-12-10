@@ -389,13 +389,15 @@ pub async fn approve_group_handler(
 #[cfg_attr(feature = "dev", derive(IntoParams))]
 #[derive(Deserialize, Debug)]
 pub(super) struct ManageGroupParams {
+    /// 新群主
     owner: Option<Uuid>,
+    /// 管理员
     admin: Option<Uuid>,
-    /// 是否移除管理员
+    /// 是否移除管理员或群成员
     ///
     /// 字段为空的时候默认 `false`
     remove: Option<bool>,
-    /// 添加或移除群成员
+    /// 群成员
     member: Option<Uuid>,
 }
 
@@ -419,9 +421,7 @@ impl Member {
 
 /// 群聊管理
 ///
-/// 转移群主, 添加或移除管理员
-///
-/// 添加或移除群成员
+/// 转移群主, 添加或移除管理员, 添加或移除群成员
 #[cfg_attr(feature = "dev",
 utoipa::path(
     put,

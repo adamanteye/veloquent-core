@@ -35,6 +35,18 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .extra("DEFAULT now()::TIMESTAMP"),
                     )
+                    .col(
+                        ColumnDef::new(Contact::Pin)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(Contact::Mute)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -93,4 +105,6 @@ pub enum Contact {
     Category,
     Session,
     CreatedAt,
+    Pin,
+    Mute,
 }

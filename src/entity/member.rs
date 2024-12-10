@@ -11,7 +11,8 @@ pub struct Model {
     pub user: Uuid,
     pub group: Uuid,
     pub permission: i32,
-    pub anheften: bool,
+    pub pin: bool,
+    pub mute: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -82,7 +82,8 @@ impl From<(Uuid, Uuid)> for member::ActiveModel {
             user: ActiveValue::set(value.1),
             permission: ActiveValue::set(0),
             created_at: ActiveValue::not_set(),
-            anheften: ActiveValue::set(false),
+            pin: ActiveValue::not_set(),
+            mute: ActiveValue::not_set(),
         }
     }
 }
@@ -121,6 +122,8 @@ pub struct GroupProfile {
     admins: Vec<Uuid>,
     /// 是否置顶
     pin: bool,
+    /// 是否静音
+    mute: bool,
 }
 
 /// 获取群聊信息
@@ -156,11 +159,13 @@ impl GroupProfile {
             .all(conn)
             .await?;
         let mut pin = false;
+        let mut mute = false;
         let members: Vec<Uuid> = members
             .into_iter()
             .map(|m| {
                 if m.user == user {
-                    pin = m.anheften;
+                    pin = m.pin;
+                    mute = m.mute;
                 }
                 m.user
             })
@@ -180,6 +185,7 @@ impl GroupProfile {
             members,
             admins,
             pin,
+            mute,
         })
     }
 }
@@ -573,22 +579,23 @@ pub async fn manage_group_handler(
 
 #[cfg_attr(feature = "dev", derive(IntoParams))]
 #[derive(Deserialize, Debug)]
-pub(super) struct PinGroupParams {
+pub(super) struct EditGroupParams {
     pin: Option<bool>,
+    mute: Option<bool>,
 }
 
-/// 置顶群聊
+/// 修改群聊
 ///
 /// 在请求参数设置 `pin` 为 `true` 时置顶, `false` 时取消置顶
 ///
-/// 默认置顶
+/// 同样也可以设置是否静音
 #[cfg_attr(feature = "dev",
 utoipa::path(
     put,
-    path = "/group/pin/{id}",
-    params(("id" = Uuid, Path, description = "群聊的唯一主键"), PinGroupParams),
+    path = "/group/edit/{id}",
+    params(("id" = Uuid, Path, description = "群聊的唯一主键"), EditGroupParams),
     responses(
-        (status = 200, description = "成功置顶"),
+        (status = 200, description = "成功修改"),
     ),
     tag = "group"
 ))]
@@ -597,20 +604,23 @@ pub async fn pin_group_handler(
     State(state): State<AppState>,
     payload: JWTPayload,
     Path(id): Path<Uuid>,
-    Query(params): Query<PinGroupParams>,
+    Query(params): Query<EditGroupParams>,
 ) -> Result<impl IntoResponse, AppError> {
     let user = payload.to_user(&state.conn).await?;
     let g = group::Model::from_uuid(id, &state.conn).await?;
     let m = member::Model::from_group_and_user(g.id, user.id, &state.conn).await?;
     let mut m = m.into_active_model();
-    if let Some(pin) = params.pin {
-        m.anheften = ActiveValue::set(pin);
-    } else {
-        m.anheften = ActiveValue::set(true);
-    }
+    m.pin = params
+        .pin
+        .map(|p| ActiveValue::set(p))
+        .unwrap_or(ActiveValue::not_set());
+    m.mute = params
+        .mute
+        .map(|p| ActiveValue::set(p))
+        .unwrap_or(ActiveValue::not_set());
     Member::update(m).exec(&state.conn).await?;
-    event!(Level::INFO, "pin group [{}]", id);
-    Ok(StatusCode::NO_CONTENT.into_response())
+    event!(Level::INFO, "edit group [{}]", id);
+    Ok(StatusCode::OK.into_response())
 }
 
 /// 退出群聊

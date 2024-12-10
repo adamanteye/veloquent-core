@@ -59,6 +59,8 @@ impl From<(Uuid, Uuid, Option<String>, Uuid)> for contact::ActiveModel {
             session: ActiveValue::set(session),
             created_at: ActiveValue::not_set(),
             category: ActiveValue::not_set(),
+            pin: ActiveValue::not_set(),
+            mute: ActiveValue::not_set(),
         }
     }
 }
@@ -133,9 +135,15 @@ pub(super) struct EditContactParams {
     alias: Option<String>,
     /// 好友分组
     category: Option<String>,
+    /// 置顶
+    pin: Option<bool>,
+    /// 静音
+    mute: Option<bool>,
 }
 
-/// 修改好友备注或分组
+/// 修改好友
+///
+/// 备注, 分组, 置顶, 静音
 #[cfg_attr(feature = "dev",
 utoipa::path(
     put,
@@ -163,6 +171,14 @@ pub async fn edit_contact_handler(
     contact::Model::from_user_and_ref(con, payload.id, &state.conn).await?;
     c.alias = ActiveValue::set(params.alias);
     c.category = ActiveValue::set(params.category);
+    c.pin = params
+        .pin
+        .map(|b| ActiveValue::set(b))
+        .unwrap_or(ActiveValue::not_set());
+    c.mute = params
+        .mute
+        .map(|b| ActiveValue::set(b))
+        .unwrap_or(ActiveValue::not_set());
     Contact::update(c).exec(&state.conn).await?;
     Ok(StatusCode::OK.into_response())
 }
@@ -265,6 +281,10 @@ pub struct Chat {
     category: Option<String>,
     /// 备注
     alias: Option<String>,
+    /// 是否置顶
+    pin: bool,
+    /// 是否静音
+    mute: bool,
 }
 
 #[derive(Debug, FromQueryResult)]
@@ -273,6 +293,8 @@ struct UserUuid {
     session: Uuid,
     category: Option<String>,
     alias: Option<String>,
+    pin: bool,
+    mute: bool,
 }
 
 impl From<UserUuid> for Chat {
@@ -282,6 +304,8 @@ impl From<UserUuid> for Chat {
             session: u.session,
             category: u.category,
             alias: u.alias,
+            pin: u.pin,
+            mute: u.mute,
         }
     }
 }
@@ -289,7 +313,7 @@ impl From<UserUuid> for Chat {
 impl ContactList {
     async fn query_contact(user: user::Model, db: &DatabaseConnection) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT a.ref_user AS user, a.session, a.category, a.alias FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
+                    "SELECT a.ref_user AS user, a.session, a.category, a.alias, a.pin, a.mute FROM contact AS a INNER JOIN contact AS b ON a.user = b.ref_user AND a.ref_user = b.user WHERE a.user = $1",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts.into_iter().map(UserUuid::into).collect();
         let num = items.len() as i32;
         Ok(Self { num, items })
@@ -300,7 +324,7 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-            "SELECT contact.user, contact.session, contact.category, contact.alias FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session, contact.category, contact.alias FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
+            "SELECT contact.user, contact.session, contact.category, contact.alias, contact.pin, contact.mute FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session, contact.category, contact.alias, contact.pin, contact.mute FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts
             .into_iter()
             .map(|c| {
@@ -318,7 +342,7 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT contact.ref_user AS user, contact.session, contact.category, contact.alias FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session, contact.category, contact.alias FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
+                    "SELECT contact.ref_user AS user, contact.session, contact.category, contact.alias, contact.pin, contact.mute FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session, contact.category, contact.alias, contact.pin, contact.mute FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts.into_iter().map(UserUuid::into).collect();
         let num = items.len() as i32;
         Ok(Self { num, items })

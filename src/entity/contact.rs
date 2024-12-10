@@ -13,6 +13,8 @@ pub struct Model {
     pub session: Uuid,
     pub alias: Option<String>,
     pub created_at: DateTime,
+    pub pin: bool,
+    pub mute: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

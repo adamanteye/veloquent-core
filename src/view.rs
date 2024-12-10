@@ -170,7 +170,7 @@ pub fn router(state: AppState) -> Router {
             delete(group::exit_group_handler).route_layer(auth.clone()),
         )
         .route(
-            "/group/pin/:id",
+            "/group/edit/:id",
             put(group::pin_group_handler).route_layer(auth.clone()),
         )
         .route(

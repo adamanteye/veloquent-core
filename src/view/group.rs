@@ -24,6 +24,19 @@ impl group::Model {
             .await?;
         Ok(members.into_iter().map(|m| m.user).collect())
     }
+
+    pub(super) async fn from_session(
+        session: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<Self, AppError> {
+        Group::find()
+            .filter(group::Column::Session.eq(session))
+            .one(conn)
+            .await?
+            .ok_or(AppError::NotFound(format!(
+                "cannot find group with session [{session}]"
+            )))
+    }
 }
 
 impl member::Model {
@@ -40,6 +53,24 @@ impl member::Model {
             .ok_or(AppError::NotFound(format!(
                 "user [{user}] not in group [{group}]"
             )))
+    }
+}
+
+impl Member {
+    pub(super) async fn is_admin(
+        group: Uuid,
+        user: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<bool, AppError> {
+        let m = Member::find()
+            .filter(member::Column::Group.eq(group))
+            .filter(member::Column::User.eq(user))
+            .one(conn)
+            .await?
+            .ok_or(AppError::NotFound(format!(
+                "member [{user}] not in [{group}]",
+            )))?;
+        Ok(m.permission == 1)
     }
 }
 
@@ -206,16 +237,15 @@ pub async fn create_group_handler(
     if members.len() < 2 {
         return Err(AppError::BadRequest("at least 2 members".to_string()));
     }
-    let s = session::ActiveModel::default();
-    let s = Session::insert(s).exec(&state.conn).await?.last_insert_id;
-    let n = session::ActiveModel::default();
-    let n = Session::insert(n).exec(&state.conn).await?.last_insert_id;
+    let s = Session::insert(session::ActiveModel::default())
+        .exec(&state.conn)
+        .await?
+        .last_insert_id;
     let g = group::ActiveModel {
         id: ActiveValue::not_set(),
         name: ActiveValue::set(req.name),
         owner: ActiveValue::set(user.id),
         session: ActiveValue::set(s),
-        notice: ActiveValue::set(n),
         created_at: ActiveValue::not_set(),
     };
     let g = Group::insert(g).exec(&state.conn).await?.last_insert_id;
@@ -301,10 +331,7 @@ pub async fn delete_group_handler(
     let user = payload.to_user(&state.conn).await?;
     let g = group::Model::from_uuid(id, &state.conn).await?;
     if let Some(u) = params.user {
-        let is_admin = member::Model::from_group_and_user(g.id, user.id, &state.conn)
-            .await?
-            .permission
-            == 1;
+        let is_admin = Member::is_admin(g.id, user.id, &state.conn).await?;
         if !is_admin && g.owner != user.id {
             return Err(AppError::Forbidden(
                 "only admin or owner can delete member".to_string(),
@@ -411,24 +438,6 @@ pub(super) struct ManageGroupParams {
     remove: Option<bool>,
     /// 群成员
     member: Option<Uuid>,
-}
-
-impl Member {
-    async fn is_admin(
-        group: Uuid,
-        user: Uuid,
-        conn: &DatabaseConnection,
-    ) -> Result<bool, AppError> {
-        let m = Member::find()
-            .filter(member::Column::Group.eq(group))
-            .filter(member::Column::User.eq(user))
-            .one(conn)
-            .await?
-            .ok_or(AppError::NotFound(format!(
-                "member [{user}] not in [{group}]",
-            )))?;
-        Ok(m.permission == 1)
-    }
 }
 
 /// 群聊管理

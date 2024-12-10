@@ -39,6 +39,12 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Message::Sender).uuid())
                     .col(ColumnDef::new(Message::Cite).uuid())
                     .col(ColumnDef::new(Message::FwdVon).uuid())
+                    .col(
+                        ColumnDef::new(Message::Notice)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -136,4 +142,5 @@ pub enum Message {
     CreatedAt,
     EditedAt,
     Session,
+    Notice,
 }

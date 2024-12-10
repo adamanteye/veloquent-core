@@ -25,6 +25,8 @@ pub struct MsgPost {
     file: Option<Uuid>,
     /// 转发消息的 UUID
     forward: Option<Uuid>,
+    /// 是否为通知
+    notice: Option<bool>,
 }
 
 impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
@@ -40,6 +42,11 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
             .cite
             .map(|u| ActiveValue::set(Some(u)))
             .unwrap_or(ActiveValue::not_set());
+        let notice = value
+            .0
+            .notice
+            .map(|b| ActiveValue::set(b))
+            .unwrap_or(ActiveValue::not_set());
         let mut m = message::ActiveModel {
             id: ActiveValue::not_set(),
             created_at: ActiveValue::not_set(),
@@ -51,6 +58,7 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
             file,
             cite,
             fwd_von: ActiveValue::not_set(),
+            notice,
         };
         if let Some(f) = value.0.forward {
             m.fwd_von = ActiveValue::set(Some(f));
@@ -87,6 +95,8 @@ pub struct Msg {
     file: Option<Uuid>,
     /// 所属会话
     session: Uuid,
+    /// 是否为群公告
+    notice: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -114,6 +124,7 @@ impl From<(message::Model, Vec<ReadAt>)> for Msg {
             cite: value.0.cite,
             read_ats: value.1,
             session: value.0.session,
+            notice: value.0.notice,
         }
     }
 }
@@ -268,6 +279,13 @@ pub async fn send_msg_handler(
     Json(msg): Json<MsgPost>,
 ) -> Result<Json<MsgRes>, AppError> {
     let msg: message::ActiveModel = (msg, payload.id, session).try_into()?;
+    if msg.notice == ActiveValue::set(true) {
+        let g = group::Model::from_session(session, &state.conn).await?;
+        let is_admin = Member::is_admin(g.id, payload.id, &state.conn).await?;
+        if g.owner != payload.id && !is_admin {
+            return Err(AppError::Forbidden("cannot send notice message".into()));
+        }
+    }
     let res = Message::insert(msg).exec(&state.conn).await?;
     let msg = Message::find_by_id(res.last_insert_id)
         .one(&state.conn)

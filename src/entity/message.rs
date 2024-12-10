@@ -16,6 +16,7 @@ pub struct Model {
     pub sender: Option<Uuid>,
     pub cite: Option<Uuid>,
     pub fwd_von: Option<Uuid>,
+    pub notice: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

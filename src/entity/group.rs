@@ -10,7 +10,6 @@ pub struct Model {
     pub created_at: DateTime,
     pub owner: Uuid,
     pub session: Uuid,
-    pub notice: Uuid,
     pub name: Option<String>,
 }
 
@@ -20,20 +19,12 @@ pub enum Relation {
     Member,
     #[sea_orm(
         belongs_to = "super::session::Entity",
-        from = "Column::Notice",
-        to = "super::session::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
-    Session2,
-    #[sea_orm(
-        belongs_to = "super::session::Entity",
         from = "Column::Session",
         to = "super::session::Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    Session1,
+    Session,
     #[sea_orm(
         belongs_to = "super::user::Entity",
         from = "Column::Owner",
@@ -47,6 +38,12 @@ pub enum Relation {
 impl Related<super::member::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Member.def()
+    }
+}
+
+impl Related<super::session::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Session.def()
     }
 }
 

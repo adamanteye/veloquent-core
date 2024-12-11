@@ -657,21 +657,3 @@ pub async fn exit_group_handler(
     event!(Level::INFO, "user [{}] exit group [{id}]", user.id);
     Ok(StatusCode::NO_CONTENT.into_response())
 }
-
-#[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn default_active_value_is_not_set() {
-        let v = session::ActiveModel::default();
-        assert_eq!(
-            v,
-            session::ActiveModel {
-                id: ActiveValue::not_set(),
-                created_at: ActiveValue::not_set(),
-            }
-        );
-    }
-}

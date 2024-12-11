@@ -22,6 +22,7 @@ pub struct History {
     pub cnt: u64,
 }
 
+/// 通过以下条件筛选聊天记录
 #[cfg_attr(feature = "dev", derive(IntoParams))]
 #[derive(Deserialize, Debug)]
 pub(super) struct HistoryRequest {
@@ -29,6 +30,15 @@ pub(super) struct HistoryRequest {
     start: Option<u64>,
     /// 最早一条消息, 默认为 `50`
     end: Option<u64>,
+    /// 消息类型
+    typ: Option<i32>,
+    /// 发送者
+    sender: Option<Uuid>,
+    /// 日期
+    #[cfg_attr(feature = "dev", param(example = "2024-09-29"))]
+    date: Option<chrono::NaiveDate>,
+    /// 消息内容
+    content: Option<String>,
 }
 
 impl History {
@@ -43,8 +53,32 @@ impl History {
         if end <= start {
             return Err(AppError::BadRequest("end leq start".to_string()));
         }
+        let condition = Condition::all()
+            .add(feed::Column::User.eq(user))
+            .add(message::Column::Session.eq(session));
+        let condition = match req.typ {
+            Some(typ) => condition.add(message::Column::Typ.eq(typ)),
+            None => condition,
+        };
+        let condition = match req.sender {
+            Some(sender) => condition.add(message::Column::Sender.eq(sender)),
+            None => condition,
+        };
+        let condition = match req.date {
+            Some(date) => {
+                let start = date.and_hms_opt(0, 0, 0).unwrap();
+                let end = date.and_hms_opt(23, 59, 59).unwrap();
+                condition
+                    .add(message::Column::CreatedAt.gte(start))
+                    .add(message::Column::CreatedAt.lt(end))
+            }
+            None => condition,
+        };
+        let condition = match req.content {
+            Some(content) => condition.add(message::Column::Content.like(format!("%{content}%"))),
+            None => condition,
+        };
         let msgs = Message::find()
-            .filter(message::Column::Session.eq(session))
             .join_rev(
                 JoinType::InnerJoin,
                 feed::Entity::belongs_to(message::Entity)
@@ -52,7 +86,7 @@ impl History {
                     .to(message::Column::Id)
                     .into(),
             )
-            .filter(feed::Column::User.eq(user))
+            .filter(condition.clone())
             .order_by(message::Column::CreatedAt, sea_orm::Order::Desc)
             .limit(Some((end - start) as u64))
             .all(conn)
@@ -70,7 +104,6 @@ impl History {
         let msgs: Vec<Msg> = msgs.into_iter().zip(read_ats).map(Msg::from).collect();
         let end = start + msgs.len() as u64;
         let cnt = Message::find()
-            .filter(message::Column::Session.eq(session))
             .join_rev(
                 JoinType::InnerJoin,
                 feed::Entity::belongs_to(message::Entity)
@@ -78,7 +111,7 @@ impl History {
                     .to(message::Column::Id)
                     .into(),
             )
-            .filter(feed::Column::User.eq(user))
+            .filter(condition)
             .count(conn)
             .await?;
         Ok(History {

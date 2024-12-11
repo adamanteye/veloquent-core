@@ -95,8 +95,6 @@ pub struct Msg {
     file: Option<Uuid>,
     /// 所属会话
     session: Uuid,
-    /// 是否为群公告
-    notice: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -124,7 +122,6 @@ impl From<(message::Model, Vec<ReadAt>)> for Msg {
             cite: value.0.cite,
             read_ats: value.1,
             session: value.0.session,
-            notice: value.0.notice,
         }
     }
 }

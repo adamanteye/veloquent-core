@@ -1,6 +1,9 @@
 use super::message::{Msg, ReadAt, Reader};
 use super::*;
-use entity::{feed, message, prelude::Message};
+use entity::{
+    feed, message,
+    prelude::{Feed, Message},
+};
 
 /// 聊天记录
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -39,6 +42,14 @@ pub(super) struct HistoryRequest {
     date: Option<chrono::NaiveDate>,
     /// 消息内容
     content: Option<String>,
+    /// 是否标记所请求的消息已读
+    ///
+    /// 默认为 `true`
+    ack: Option<bool>,
+    /// 是否获取群公告
+    ///
+    /// 默认为 `false`
+    notice: Option<bool>,
 }
 
 impl History {
@@ -54,6 +65,7 @@ impl History {
             return Err(AppError::BadRequest("end leq start".to_string()));
         }
         let condition = Condition::all()
+            .add(message::Column::Notice.eq(req.notice.unwrap_or(false)))
             .add(feed::Column::User.eq(user))
             .add(message::Column::Session.eq(session));
         let condition = match req.typ {
@@ -93,6 +105,8 @@ impl History {
             .await?
             .split_off(start as usize);
         let mut read_ats = Vec::new();
+        let ack = req.ack.unwrap_or(true);
+        let mut msg_uuids: Vec<Uuid> = Vec::new();
         for msg in &msgs {
             let read_at: Vec<ReadAt> = Reader::fetch_from_db(msg.id, conn)
                 .await?
@@ -100,6 +114,7 @@ impl History {
                 .map(ReadAt::from)
                 .collect();
             read_ats.push(read_at);
+            msg_uuids.push(msg.id);
         }
         let msgs: Vec<Msg> = msgs.into_iter().zip(read_ats).map(Msg::from).collect();
         let end = start + msgs.len() as u64;
@@ -114,6 +129,12 @@ impl History {
             .filter(condition)
             .count(conn)
             .await?;
+        let c = conn.clone();
+        if ack {
+            tokio::spawn(async move {
+                Feed::ack_msgs(user, msg_uuids, &c).await.ok();
+            });
+        }
         Ok(History {
             msgs,
             start,

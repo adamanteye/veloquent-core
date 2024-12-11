@@ -81,6 +81,7 @@ pub fn router(state: AppState) -> Router {
 
     router
         .route("/login", post(login::login_handler))
+        .route("/renew", get(login::renew_handler))
         .route("/register", post(user::register_handler))
         .route(
             "/user",

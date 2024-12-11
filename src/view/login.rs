@@ -78,3 +78,23 @@ pub async fn login_handler(
     )
         .into_response())
 }
+
+/// 刷新 JWT
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    get,
+    path = "/renew",
+    responses(
+        (status = 200, description = "刷新成功", body = LoginResponse),
+    ),
+    tag = "user"
+))]
+#[instrument(skip(state))]
+pub async fn renew_handler(
+    State(state): State<AppState>,
+    payload: JWTPayload,
+) -> Result<Json<LoginResponse>, AppError> {
+    user::Model::from_uuid(payload.id, &state.conn).await?;
+    let token = payload.id.into();
+    Ok(Json(LoginResponse { token }))
+}

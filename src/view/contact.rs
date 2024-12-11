@@ -324,7 +324,7 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-            "SELECT contact.user, contact.session, contact.category, contact.alias, contact.pin, contact.mute FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session, contact.category, contact.alias, contact.pin, contact.mute FROM contact WHERE contact.user = $1",[user.id.into()])).all(db).await?;
+            "SELECT c.user, c.session, c.category, c.alias, c.pin, c.mute FROM contact AS c INNER JOIN (SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1 EXCEPT SELECT contact.ref_user, contact.session FROM contact WHERE contact.user = $1) AS b ON c.user = b.user AND c.session = b.session",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts
             .into_iter()
             .map(|c| {
@@ -342,7 +342,7 @@ impl ContactList {
         db: &DatabaseConnection,
     ) -> Result<Self, AppError> {
         let contacts:Vec<UserUuid> = UserUuid::find_by_statement(Statement::from_sql_and_values(Postgres,
-                    "SELECT contact.ref_user AS user, contact.session, contact.category, contact.alias, contact.pin, contact.mute FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session, contact.category, contact.alias, contact.pin, contact.mute FROM contact WHERE contact.ref_user = $1",[user.id.into()])).all(db).await?;
+                    "SELECT c.user, c.session, c.category, c.alias, c.pin, c.mute FROM contact AS c INNER JOIN (SELECT contact.ref_user AS user, contact.session FROM contact WHERE contact.user = $1 EXCEPT SELECT contact.user, contact.session FROM contact WHERE contact.ref_user = $1) AS b ON c.ref_user = b.user AND c.session = b.session;",[user.id.into()])).all(db).await?;
         let items: Vec<Chat> = contacts.into_iter().map(UserUuid::into).collect();
         let num = items.len() as i32;
         Ok(Self { num, items })

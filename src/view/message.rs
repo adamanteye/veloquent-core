@@ -1,8 +1,11 @@
-use super::*;
 use entity::{
     contact, feed, group, member, message,
     prelude::{Contact, Feed, Member, Message},
 };
+use utility::UUID_NIL;
+
+use super::feed::{FeedItem, Notification};
+use super::*;
 
 #[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
@@ -276,7 +279,8 @@ pub async fn send_msg_handler(
     Json(msg): Json<MsgPost>,
 ) -> Result<Json<MsgRes>, AppError> {
     let msg: message::ActiveModel = (msg, payload.id, session).try_into()?;
-    if msg.notice == ActiveValue::set(true) {
+    let notice = msg.notice == ActiveValue::set(true);
+    if notice {
         let g = group::Model::from_session(session, &state.conn).await?;
         let is_admin = Member::is_admin(g.id, payload.id, &state.conn).await?;
         if g.owner != payload.id && !is_admin {
@@ -295,15 +299,32 @@ pub async fn send_msg_handler(
             .await
         {
             Ok(contacts) => {
-                let mut users: Vec<Uuid> = contacts.iter().map(|c| c.user).collect();
-                users.sort();
-                users.dedup();
-                for user in users {
-                    match Feed::insert(feed::ActiveModel::from((user, msg.id)))
+                for c in contacts {
+                    match Feed::insert(feed::ActiveModel::from((c.user, msg.id)))
                         .exec(&state.conn)
                         .await
                     {
-                        Ok(_) => {}
+                        Ok(_) => {
+                            if let Ok(feed) = FeedItem::from_chat(
+                                c.ref_user.unwrap_or(*UUID_NIL),
+                                session,
+                                c.user,
+                                &state.conn,
+                            )
+                            .await
+                            {
+                                let notification = Notification::Chats { feeds: vec![feed] };
+                                state
+                                    .ws_pool
+                                    .notify(
+                                        c.user,
+                                        WebSocketMessage::Text(
+                                            serde_json::to_string(&notification).unwrap(),
+                                        ),
+                                    )
+                                    .await;
+                            }
+                        }
                         Err(e) => {
                             event!(Level::ERROR, "cannot store contact feed: {}", e);
                         }
@@ -326,16 +347,36 @@ pub async fn send_msg_handler(
             .all(&state.conn)
             .await
         {
-            Ok(group_users) => {
-                let mut group_users: Vec<Uuid> = group_users.into_iter().map(|m| m.user).collect();
-                group_users.sort();
-                group_users.dedup();
-                for user in group_users {
-                    match Feed::insert(feed::ActiveModel::from((user, msg.id)))
+            Ok(mut groups) => {
+                groups.sort_by_key(|g| g.user);
+                groups.dedup_by_key(|g| g.user);
+                for g in groups {
+                    match Feed::insert(feed::ActiveModel::from((g.user, msg.id)))
                         .exec(&state.conn)
                         .await
                     {
-                        Ok(_) => {}
+                        Ok(_) => {
+                            if let Ok(feed) = if notice {
+                                FeedItem::from_notice(g.group, session, g.user, &state.conn).await
+                            } else {
+                                FeedItem::from_group(g.group, session, g.user, &state.conn).await
+                            } {
+                                let notification = if notice {
+                                    Notification::Notices { feeds: vec![feed] }
+                                } else {
+                                    Notification::Groups { feeds: vec![feed] }
+                                };
+                                state
+                                    .ws_pool
+                                    .notify(
+                                        g.user,
+                                        WebSocketMessage::Text(
+                                            serde_json::to_string(&notification).unwrap(),
+                                        ),
+                                    )
+                                    .await;
+                            }
+                        }
                         Err(e) => {
                             event!(Level::ERROR, "cannot store group feed: {}", e);
                         }

@@ -75,24 +75,12 @@ async fn main() -> Result<()> {
         event!(Level::WARN, "migrated database");
     }
     let secret = config.authentication.secret;
-    jwt::JWT_SETTING
-        .set(jwt::JwtSetting {
-            exp: config.authentication.exp_after,
-            de_key: jwt::DecodingKey::from_secret(secret.as_bytes()),
-            en_key: jwt::EncodingKey::from_secret(secret.as_bytes()),
-        })
-        .map_err(|_| Err::<(), ()>(()))
-        .unwrap();
-    jwt::JWT_ALG
-        .set(jsonwebtoken::Validation::new(
-            jsonwebtoken::Algorithm::HS256,
-        ))
-        .map_err(|_| Err::<(), ()>(()))
-        .unwrap();
-    utility::UPLOAD_DIR
-        .set(config.upload.dir)
-        .map_err(|_| Err::<(), ()>(()))
-        .unwrap();
+    jwt::JWT_SETTING.get_or_init(|| jwt::JwtSetting {
+        exp: config.authentication.exp_after,
+        de_key: jwt::DecodingKey::from_secret(secret.as_bytes()),
+        en_key: jwt::EncodingKey::from_secret(secret.as_bytes()),
+    });
+    utility::UPLOAD_DIR.get_or_init(|| config.upload.dir);
     let state = AppState {
         conn: db,
         ws_pool: Default::default(),

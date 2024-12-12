@@ -5,6 +5,8 @@ use entity::{
     session,
 };
 
+use feed::{GroupUpdate, Notification};
+
 impl group::Model {
     async fn from_uuid(id: Uuid, conn: &DatabaseConnection) -> Result<Self, AppError> {
         Group::find_by_id(id)
@@ -71,6 +73,18 @@ impl Member {
                 "member [{user}] not in [{group}]",
             )))?;
         Ok(m.permission == 1)
+    }
+
+    pub(super) async fn get_admins(
+        group: Uuid,
+        conn: &DatabaseConnection,
+    ) -> Result<Vec<Uuid>, AppError> {
+        let admins = Member::find()
+            .filter(member::Column::Group.eq(group))
+            .filter(member::Column::Permission.eq(1))
+            .all(conn)
+            .await?;
+        Ok(admins.into_iter().map(|m| m.user).collect())
     }
 }
 
@@ -170,12 +184,7 @@ impl GroupProfile {
                 m.user
             })
             .collect();
-        let admins = Member::find()
-            .filter(member::Column::Group.eq(g.id))
-            .filter(member::Column::Permission.eq(1))
-            .all(conn)
-            .await?;
-        let admins = admins.into_iter().map(|m| m.user).collect();
+        let admins = Member::get_admins(g.id, conn).await?;
         Ok(GroupProfile {
             name: g.name,
             owner: g.owner,
@@ -285,6 +294,8 @@ pub async fn invite_group_handler(
     let user = payload.to_user(&state.conn).await?;
     let g = group::Model::from_uuid(id, &state.conn).await?;
     member::Model::from_group_and_user(g.id, user.id, &state.conn).await?;
+    let admins = Member::get_admins(g.id, &state.conn).await?;
+    let owner = g.owner;
     for u in users.into_iter() {
         let _ = User::find_by_id(u)
             .one(&state.conn)
@@ -301,6 +312,44 @@ pub async fn invite_group_handler(
         let mut m = member::ActiveModel::from((g.id, u));
         m.permission = ActiveValue::set(-1);
         Member::insert(m).exec(&state.conn).await?;
+        let admins = admins.clone();
+        let ws_pool = state.ws_pool.clone();
+        tokio::task::spawn(async move {
+            let notification = Notification::GroupRequests {
+                items: vec![GroupUpdate {
+                    group: g.id,
+                    user: u,
+                }],
+            };
+            ws_pool
+                .notify(
+                    owner,
+                    WebSocketMessage::Text(serde_json::to_string(&notification).unwrap()),
+                )
+                .await;
+            ws_pool
+                .notify(
+                    u,
+                    WebSocketMessage::Text(
+                        serde_json::to_string(&Notification::GroupInvites {
+                            items: vec![GroupUpdate {
+                                group: g.id,
+                                user: u,
+                            }],
+                        })
+                        .unwrap(),
+                    ),
+                )
+                .await;
+            for a in &admins {
+                ws_pool
+                    .notify(
+                        a.clone(),
+                        WebSocketMessage::Text(serde_json::to_string(&notification).unwrap()),
+                    )
+                    .await;
+            }
+        });
     }
     Ok(StatusCode::OK.into_response())
 }
@@ -425,6 +474,21 @@ pub async fn approve_group_handler(
             let mut m = m.into_active_model();
             m.permission = ActiveValue::set(0);
             Member::update(m).exec(&state.conn).await?;
+            tokio::task::spawn(async move {
+                let notification = Notification::GroupAccepts {
+                    items: vec![GroupUpdate {
+                        group,
+                        user: member,
+                    }],
+                };
+                state
+                    .ws_pool
+                    .notify(
+                        member,
+                        WebSocketMessage::Text(serde_json::to_string(&notification).unwrap()),
+                    )
+                    .await;
+            });
             Ok(StatusCode::OK.into_response())
         };
     }

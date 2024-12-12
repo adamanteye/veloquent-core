@@ -8,53 +8,24 @@ use tokio::time::timeout;
 #[derive(Clone, Debug, Default)]
 pub struct WebSocketPool {
     senders: Arc<DashMap<Uuid, Arc<Mutex<SplitSink<WebSocket, WebSocketMessage>>>>>,
-    receivers: Arc<DashMap<Uuid, Arc<Mutex<SplitStream<WebSocket>>>>>,
 }
 
 impl WebSocketPool {
     #[instrument(skip(self, ws))]
     pub async fn register(&mut self, user: Uuid, ws: WebSocket) {
         event!(Level::INFO, "registered websocket for user [{}]", user);
-        let (sender, receiver) = ws.split();
+        let (sender, _) = ws.split();
         self.senders.insert(user, Arc::new(Mutex::new(sender)));
-        self.receivers.insert(user, Arc::new(Mutex::new(receiver)));
-        self.listen(user).await;
     }
 
     #[instrument(skip(self))]
-    pub async fn notify(&self, user: Uuid, message: Result<WebSocketMessage, AppError>) {
+    pub async fn notify(&self, user: Uuid, message: WebSocketMessage) {
         if let Some(ws) = self.senders.get_mut(&user) {
-            if let Ok(message) = message {
-                event!(
-                    Level::INFO,
-                    "websocket sent message [{message:?}] to user [{user}]",
-                );
-                ws.lock().await.send(message).await.ok();
-            }
-        }
-    }
-
-    #[instrument(skip(self))]
-    async fn listen(&self, user: Uuid) {
-        if let Some(receiver) = self.receivers.get(&user) {
-            let receiver = receiver.clone();
-            event!(Level::INFO, "websocket listening for user [{user}]");
-            tokio::spawn(async move {
-                loop {
-                    let mut receiver_lock = receiver.lock().await;
-                    match receiver_lock.next().await {
-                        Some(Ok(WebSocketMessage::Text(text))) => {
-                            event!(
-                                Level::DEBUG,
-                                "websocket received message [{text}] from [{user}]",
-                            );
-                        }
-                        _ => {}
-                    }
-                }
-            });
-        } else {
-            event!(Level::WARN, "cannot find ws receiver for user [{}]", user);
+            event!(
+                Level::INFO,
+                "websocket sent message [{message:?}] to user [{user}]",
+            );
+            ws.lock().await.send(message).await.ok();
         }
     }
 }

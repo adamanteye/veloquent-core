@@ -4,6 +4,8 @@ use entity::{
     prelude::{Contact, Session},
     session, user,
 };
+use feed::Notification;
+use utility::UUID_NIL;
 
 impl contact::Model {
     async fn from_user_and_ref_raw(
@@ -97,8 +99,16 @@ pub async fn add_contact_handler(
     event!(Level::DEBUG, "create new session [{}]", s);
     event!(Level::DEBUG, "user [{}] add [{}]", user.id, con.id);
     tokio::task::spawn(async move {
-        let msg = notify_new_contacts_hook(&state.conn, con.id).await;
-        state.ws_pool.notify(con.id, msg).await;
+        if let Ok(data) = ContactList::query_new_contact(user, &state.conn).await {
+            let data = Notification::ContactRequests { items: data };
+            state
+                .ws_pool
+                .notify(
+                    con.id,
+                    WebSocketMessage::Text(serde_json::to_string(&data).unwrap()),
+                )
+                .await;
+        }
     });
     Ok(StatusCode::OK.into_response())
 }
@@ -253,6 +263,26 @@ pub async fn accept_contact_handler(
         .ok_or(anyhow::anyhow!("session not found [{}]", entry.session))?;
     let c = contact::ActiveModel::from((user.id, con.id, con.alias, s.id));
     Contact::insert(c).exec(&state.conn).await?;
+    tokio::task::spawn(async move {
+        if let Ok(Some(c)) =
+            contact::Model::from_user_and_ref_raw(con.id, user.id, &state.conn).await
+        {
+            let c: Chat = c.into();
+            let data = Notification::ContactAccepts {
+                items: ContactList {
+                    num: 1,
+                    items: vec![c],
+                },
+            };
+            state
+                .ws_pool
+                .notify(
+                    user.id,
+                    WebSocketMessage::Text(serde_json::to_string(&data).unwrap()),
+                )
+                .await;
+        }
+    });
     Ok(StatusCode::OK.into_response())
 }
 
@@ -285,6 +315,19 @@ pub struct Chat {
     pin: bool,
     /// 是否静音
     mute: bool,
+}
+
+impl From<contact::Model> for Chat {
+    fn from(c: contact::Model) -> Self {
+        Self {
+            id: c.ref_user.unwrap_or(*UUID_NIL),
+            session: c.session,
+            category: c.category,
+            alias: c.alias,
+            pin: c.pin,
+            mute: c.mute,
+        }
+    }
 }
 
 #[derive(Debug, FromQueryResult)]
@@ -347,19 +390,6 @@ impl ContactList {
         let num = items.len() as i32;
         Ok(Self { num, items })
     }
-}
-
-/// 推送好友申请列表
-#[instrument(skip(conn))]
-pub async fn notify_new_contacts_hook(
-    conn: &DatabaseConnection,
-    user_id: Uuid,
-) -> Result<WebSocketMessage, AppError> {
-    let user = user::Model::from_uuid(user_id, conn).await?;
-    let data = ContactList::query_new_contact(user, &conn).await?;
-    event!(Level::DEBUG, "get new contact list of user [{}]", user_id);
-    let data = Json(data);
-    Ok(WebSocketMessage::Text(format!("{:?}", Json(data))))
 }
 
 /// 获取待通过好友列表

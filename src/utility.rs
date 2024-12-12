@@ -20,10 +20,14 @@ pub(super) async fn shutdown_signal() {
     tracing::event!(tracing::Level::INFO, "gracefully shutting down");
 }
 
-use {crate::entity, once_cell::sync::Lazy, regex::Regex};
+use crate::entity;
+
+use std::sync::{LazyLock, OnceLock};
+
+use regex::Regex;
 
 pub fn good_email(email: &str) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| {
+    static RE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
             r"^([a-z0-9_+]([a-z0-9_+.]*[a-z0-9_+])?)@([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6})",
         )
@@ -33,7 +37,7 @@ pub fn good_email(email: &str) -> bool {
 }
 
 pub fn good_phone(phone: &str) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9]{11}").unwrap());
+    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9]{11}").unwrap());
     RE.is_match(phone)
 }
 
@@ -74,9 +78,7 @@ pub fn gen_hash_and_salt(passwd: &str) -> Result<(String, String), anyhow::Error
     Ok((hash, salt))
 }
 
-use once_cell::sync::OnceCell;
-
-pub(super) static UPLOAD_DIR: OnceCell<String> = OnceCell::new();
+pub(super) static UPLOAD_DIR: OnceLock<String> = OnceLock::new();
 
 impl From<entity::upload::Model> for std::path::PathBuf {
     fn from(upload: entity::upload::Model) -> Self {
@@ -88,10 +90,10 @@ impl From<entity::upload::Model> for std::path::PathBuf {
     }
 }
 
-pub static UUID_NIL: Lazy<uuid::Uuid> = Lazy::new(uuid::Uuid::nil);
+pub static UUID_NIL: LazyLock<uuid::Uuid> = LazyLock::new(uuid::Uuid::nil);
 
-static UPLOAD_UUID: Lazy<uuid::Uuid> =
-    Lazy::new(|| uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_URL, b"veloquent"));
+static UPLOAD_UUID: LazyLock<uuid::Uuid> =
+    LazyLock::new(|| uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_URL, b"veloquent"));
 
 pub fn bytes_as_uuid(bytes: &axum::body::Bytes) -> uuid::Uuid {
     uuid::Uuid::new_v5(&UPLOAD_UUID, bytes)

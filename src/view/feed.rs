@@ -7,8 +7,7 @@ use entity::{
 
 use contact::ContactList;
 
-/// 用户或群聊的状态更新
-#[cfg_attr(feature = "dev", derive(ToSchema))]
+/// 用户或群聊的消息更新
 #[derive(Serialize)]
 pub struct FeedItem {
     /// 用户或群聊的 UUID
@@ -17,6 +16,13 @@ pub struct FeedItem {
     session: Uuid,
     /// 新消息计数
     cnt: u64,
+}
+
+/// 群聊的用户更新
+#[derive(Serialize)]
+pub struct GroupUpdate {
+    pub group: Uuid,
+    pub user: Uuid,
 }
 
 /// 新消息通知
@@ -35,9 +41,11 @@ pub enum Notification {
     /// 新的被接受的联系人添加请求
     ContactAccepts { items: ContactList },
     /// 新的加入群组邀请
-    GroupInvites { items: Vec<Uuid> },
+    GroupInvites { items: Vec<GroupUpdate> },
     /// 新的希望加入自己管理的群组的请求
-    GroupRequests { items: Vec<Uuid> },
+    GroupRequests { items: Vec<GroupUpdate> },
+    /// 新的接受加入群组通知
+    GroupAccepts { items: Vec<GroupUpdate> },
 }
 
 async fn count_unread_msgs(
@@ -63,55 +71,46 @@ async fn count_unread_msgs(
 }
 
 impl FeedItem {
-    pub(super) async fn from_group_sessions(
-        group_sessions: &Vec<(Uuid, Uuid)>,
+    pub(super) async fn from_group(
+        group: Uuid,
+        session: Uuid,
         user: Uuid,
         conn: &DatabaseConnection,
-    ) -> Result<Vec<Self>, AppError> {
-        let mut feeds = Vec::new();
-        for (group, session) in group_sessions {
-            let cnt = count_unread_msgs(user, *session, false, conn).await?;
-            feeds.push(FeedItem {
-                id: *group,
-                session: *session,
-                cnt,
-            });
-        }
-        Ok(feeds)
+    ) -> Result<Self, AppError> {
+        let cnt = count_unread_msgs(user, session, false, conn).await?;
+        Ok(FeedItem {
+            id: group,
+            session,
+            cnt,
+        })
     }
 
-    pub(super) async fn from_chat_sessions(
-        chat_sessions: &Vec<(Uuid, Uuid)>,
+    pub(super) async fn from_chat(
+        ref_user: Uuid,
+        session: Uuid,
         user: Uuid,
         conn: &DatabaseConnection,
-    ) -> Result<Vec<Self>, AppError> {
-        let mut feeds = Vec::new();
-        for (chat, session) in chat_sessions {
-            let cnt = count_unread_msgs(user, *session, false, conn).await?;
-            feeds.push(FeedItem {
-                id: *chat,
-                session: *session,
-                cnt,
-            });
-        }
-        Ok(feeds)
+    ) -> Result<Self, AppError> {
+        let cnt = count_unread_msgs(user, session, false, conn).await?;
+        Ok(FeedItem {
+            id: ref_user,
+            session,
+            cnt,
+        })
     }
 
-    pub(super) async fn from_notice_sessions(
-        notice_sessions: &Vec<(Uuid, Uuid)>,
+    pub(super) async fn from_notice(
+        notice: Uuid,
+        session: Uuid,
         user: Uuid,
         conn: &DatabaseConnection,
-    ) -> Result<Vec<Self>, AppError> {
-        let mut feeds = Vec::new();
-        for (notice, session) in notice_sessions {
-            let cnt = count_unread_msgs(user, *session, true, conn).await?;
-            feeds.push(FeedItem {
-                id: *notice,
-                session: *session,
-                cnt,
-            });
-        }
-        Ok(feeds)
+    ) -> Result<Self, AppError> {
+        let cnt = count_unread_msgs(user, session, true, conn).await?;
+        Ok(FeedItem {
+            id: notice,
+            session,
+            cnt,
+        })
     }
 }
 

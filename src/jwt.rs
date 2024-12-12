@@ -1,12 +1,13 @@
 //! JWT 工具库
 
+use std::sync::{LazyLock, OnceLock};
+
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts, RequestPartsExt};
 use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     TypedHeader,
 };
 pub(super) use jsonwebtoken::{DecodingKey, EncodingKey};
-use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "dev")]
 use utoipa::ToSchema;
@@ -14,8 +15,9 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 
-pub(super) static JWT_ALG: OnceCell<jsonwebtoken::Validation> = OnceCell::new();
-pub(super) static JWT_SETTING: OnceCell<JwtSetting> = OnceCell::new();
+pub(super) static JWT_ALG: LazyLock<jsonwebtoken::Validation> =
+    LazyLock::new(|| jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::HS256));
+pub(super) static JWT_SETTING: OnceLock<JwtSetting> = OnceLock::new();
 
 #[doc(hidden)]
 pub(super) struct JwtSetting {
@@ -66,13 +68,9 @@ impl From<Uuid> for JWTPayload {
 impl TryFrom<&str> for JWTPayload {
     type Error = AppError;
     fn try_from(token: &str) -> Result<Self, Self::Error> {
-        jsonwebtoken::decode::<JWTPayload>(
-            token,
-            &JWT_SETTING.get().unwrap().de_key,
-            JWT_ALG.get().unwrap(),
-        )
-        .map_err(|e| AppError::Unauthorized(format!("invalid JWT: [{}]", e)))
-        .map(|t| t.claims)
+        jsonwebtoken::decode::<JWTPayload>(token, &JWT_SETTING.get().unwrap().de_key, &*JWT_ALG)
+            .map_err(|e| AppError::Unauthorized(format!("invalid JWT: [{}]", e)))
+            .map(|t| t.claims)
     }
 }
 

@@ -23,7 +23,7 @@ impl MigrationTrait for Migration {
                             .uuid()
                             .not_null()
                             .primary_key()
-                            .extra("DEFAULT gen_random_uuid()"),
+                            .extra("DEFAULT uuid_generate_v4()"),
                     )
                     .col(
                         ColumnDef::new(Message::CreatedAt)

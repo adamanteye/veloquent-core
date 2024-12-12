@@ -20,7 +20,7 @@ impl MigrationTrait for Migration {
                             .uuid()
                             .not_null()
                             .primary_key()
-                            .extra("DEFAULT gen_random_uuid()"),
+                            .extra("DEFAULT uuid_generate_v4()"),
                     )
                     .col(ColumnDef::new(User::Name).string().not_null().unique_key())
                     .col(ColumnDef::new(User::Alias).string())

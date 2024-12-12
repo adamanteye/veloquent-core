@@ -15,6 +15,8 @@ psql -U postgres
 CREATE USER yangzheh WITH PASSWORD '123456';
 CREATE DATABASE veloquent;
 GRANT ALL PRIVILEGES ON DATABASE veloquent TO yangzheh;
+\c veloquent
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 \q
 ```
 
@@ -49,7 +51,7 @@ docker run -d \
     -e POSTGRES_PASSWORD=123456 \
     -v /srv/pg-dev:/var/lib/postgresql/data \
     -p 5432:5432 \
-    postgres:17.0-alpine3.20
+    postgres:9.5.20-alpine
 ```
 
 如果想连入数据库执行一些操作, 可以执行:

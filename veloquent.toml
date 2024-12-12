@@ -1,6 +1,6 @@
 [database]
-address = "127.0.0.1"
-max_connections = 10
+address = "pg-test.Veloquent.secoder.local"
+max_connections = 100
 name = "veloquent"
 password = "123456"
 port = 5432

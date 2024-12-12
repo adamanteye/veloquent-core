@@ -2,9 +2,21 @@
 
 队名 **Veloquent** 结合拉丁语 _velox_ (快速) 和 _eloquent_ (雄辩), 表达快速而清晰的沟通能力.
 
-数据库采用 `postgres:17.0-alpine3.20`, 详见 `docker-compose.yml`.
+数据库采用 `postgres:9.5.20-alpine`.
 
 **Veloquent** 后端服务的配置文件示例为 `veloquent.toml`, 包含数据库敏感信息.
+
+## 部署说明
+
+因为 secoder 不支持环境变量运行容器, 而且对于高版本的 postgresql 无法使用终端, 因此使用镜像 `postgres:9.5.20-alpine`. 为了配置用户名和数据库, 首先连入 web 终端:
+
+```sh
+psql -U postgres
+CREATE USER yangzheh WITH PASSWORD '123456';
+CREATE DATABASE veloquent;
+GRANT ALL PRIVILEGES ON DATABASE veloquent TO yangzheh;
+\q
+```
 
 ## 测试说明
 

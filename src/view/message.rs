@@ -172,7 +172,7 @@ impl Reader {
     ) -> Result<Vec<Self>, AppError> {
         Ok(Self::find_by_statement(Statement::from_sql_and_values(
             Postgres,
-            "SELECT feed.user AS reader, feed.read_at FROM message INNER JOIN feed ON message.id = feed.message WHERE message.id = $1",
+            "SELECT feed.user AS reader, feed.read_at FROM message INNER JOIN feed ON message.id = feed.message WHERE message.id = $1 AND feed.read_at IS NOT NULL",
             [id.into()],
         ))
         .all(conn)

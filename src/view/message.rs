@@ -299,14 +299,9 @@ pub async fn send_msg_handler(
                 users.sort();
                 users.dedup();
                 for user in users {
-                    match Feed::insert(feed::ActiveModel {
-                        id: ActiveValue::not_set(),
-                        user: ActiveValue::set(user),
-                        message: ActiveValue::set(msg.id),
-                        read_at: ActiveValue::not_set(),
-                    })
-                    .exec(&state.conn)
-                    .await
+                    match Feed::insert(feed::ActiveModel::from((user, msg.id)))
+                        .exec(&state.conn)
+                        .await
                     {
                         Ok(_) => {}
                         Err(e) => {
@@ -314,47 +309,41 @@ pub async fn send_msg_handler(
                         }
                     }
                 }
-                match Member::find()
-                    .join_rev(
-                        JoinType::InnerJoin,
-                        group::Entity::belongs_to(member::Entity)
-                            .from(group::Column::Id)
-                            .to(member::Column::Group)
-                            .into(),
-                    )
-                    .filter(group::Column::Session.eq(session))
-                    .all(&state.conn)
-                    .await
-                {
-                    Ok(group_users) => {
-                        let mut group_users: Vec<Uuid> =
-                            group_users.into_iter().map(|m| m.user).collect();
-                        group_users.sort();
-                        group_users.dedup();
-                        for user in group_users {
-                            match Feed::insert(feed::ActiveModel {
-                                id: ActiveValue::not_set(),
-                                user: ActiveValue::set(user),
-                                message: ActiveValue::set(msg.id),
-                                read_at: ActiveValue::not_set(),
-                            })
-                            .exec(&state.conn)
-                            .await
-                            {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    event!(Level::ERROR, "cannot store group feed: {}", e);
-                                }
-                            }
+            }
+            Err(e) => {
+                event!(Level::ERROR, "cannot find contacts: {}", e);
+            }
+        }
+        match Member::find()
+            .join_rev(
+                JoinType::InnerJoin,
+                group::Entity::belongs_to(member::Entity)
+                    .from(group::Column::Id)
+                    .to(member::Column::Group)
+                    .into(),
+            )
+            .filter(group::Column::Session.eq(session))
+            .all(&state.conn)
+            .await
+        {
+            Ok(group_users) => {
+                let mut group_users: Vec<Uuid> = group_users.into_iter().map(|m| m.user).collect();
+                group_users.sort();
+                group_users.dedup();
+                for user in group_users {
+                    match Feed::insert(feed::ActiveModel::from((user, msg.id)))
+                        .exec(&state.conn)
+                        .await
+                    {
+                        Ok(_) => {}
+                        Err(e) => {
+                            event!(Level::ERROR, "cannot store group feed: {}", e);
                         }
-                    }
-                    Err(e) => {
-                        event!(Level::ERROR, "cannot find group users: {}", e);
                     }
                 }
             }
             Err(e) => {
-                event!(Level::ERROR, "cannot find contacts: {}", e);
+                event!(Level::ERROR, "cannot find group users: {}", e);
             }
         }
     });
@@ -365,6 +354,17 @@ pub async fn send_msg_handler(
         payload.id
     );
     Ok(Json(msg.into()))
+}
+
+impl From<(Uuid, Uuid)> for feed::ActiveModel {
+    fn from(value: (Uuid, Uuid)) -> Self {
+        feed::ActiveModel {
+            id: ActiveValue::not_set(),
+            user: ActiveValue::set(value.0),
+            message: ActiveValue::set(value.1),
+            read_at: ActiveValue::not_set(),
+        }
+    }
 }
 
 /// 删除聊天记录

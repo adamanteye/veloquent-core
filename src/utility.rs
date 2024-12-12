@@ -101,7 +101,7 @@ pub fn bytes_as_uuid(bytes: &axum::body::Bytes) -> uuid::Uuid {
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
-mod test {
+mod tests {
     use super::*;
 
     #[test]

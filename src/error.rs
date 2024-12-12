@@ -65,7 +65,7 @@ impl IntoResponse for AppError {
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
-mod test {
+mod tests {
     use super::*;
 
     #[test]

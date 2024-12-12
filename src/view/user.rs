@@ -149,46 +149,6 @@ impl From<user::Model> for UserProfile {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    use std::str::FromStr;
-
-    #[test]
-    fn convert_profile_from_entity() {
-        let created_at = chrono::Utc::now().naive_utc();
-        let user = user::Model {
-            id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),
-            name: "test".to_string(),
-            alias: Option::None,
-            email: "adamanteye@example.com".to_string(),
-            phone: "1234567890".to_string(),
-            created_at,
-            avatar: Option::None,
-            bio: Option::None,
-            link: Option::None,
-            gender: 0,
-            salt: "KxlaYxELSZSGYCEsm5dE00BTTxnZ10".to_string(),
-            hash: "74491363c6cc8c851ed7e1ea3279741795cf4e1f9534b125562ff7030f295eb7".to_string(),
-        };
-        assert_eq!(
-            UserProfile::from(user),
-            UserProfile {
-                id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),
-                name: "test".to_string(),
-                email: "adamanteye@example.com".to_string(),
-                phone: "1234567890".to_string(),
-                created_at: created_at.and_utc().timestamp_millis(),
-                gender: 0,
-                avatar: uuid::Uuid::default(),
-                alias: String::default(),
-                bio: String::default(),
-                link: String::default(),
-            }
-        );
-    }
-}
-
 #[cfg_attr(feature = "dev", derive(IntoParams))]
 #[derive(Deserialize, Debug)]
 pub struct UserProfileParams {
@@ -414,4 +374,45 @@ pub async fn find_user_handler(
     let users = UserList::find(params, &state.conn).await?;
     event!(Level::DEBUG, "conditional find users: [{:?}]", users);
     Ok(Json(users))
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn convert_profile_from_entity() {
+        let created_at = chrono::Utc::now().naive_utc();
+        let user = user::Model {
+            id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),
+            name: "test".to_string(),
+            alias: Option::None,
+            email: "adamanteye@example.com".to_string(),
+            phone: "1234567890".to_string(),
+            created_at,
+            avatar: Option::None,
+            bio: Option::None,
+            link: Option::None,
+            gender: 0,
+            salt: "KxlaYxELSZSGYCEsm5dE00BTTxnZ10".to_string(),
+            hash: "74491363c6cc8c851ed7e1ea3279741795cf4e1f9534b125562ff7030f295eb7".to_string(),
+        };
+        assert_eq!(
+            UserProfile::from(user),
+            UserProfile {
+                id: Uuid::from_str("264107cf-8559-41b0-a8fe-074531695bf6").unwrap(),
+                name: "test".to_string(),
+                email: "adamanteye@example.com".to_string(),
+                phone: "1234567890".to_string(),
+                created_at: created_at.and_utc().timestamp_millis(),
+                gender: 0,
+                avatar: uuid::Uuid::default(),
+                alias: String::default(),
+                bio: String::default(),
+                link: String::default(),
+            }
+        );
+    }
 }

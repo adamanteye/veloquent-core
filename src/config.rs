@@ -59,7 +59,7 @@ pub struct Config {
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
-mod test {
+mod tests {
     use super::*;
 
     #[test]
@@ -84,7 +84,6 @@ exp_after = 86400
 [upload]
 dir = "/srv/veloquent/upload"
 "#;
-
         assert!(toml::from_str::<Config>(config_file).is_ok());
     }
 }

@@ -50,6 +50,8 @@ mod message;
 #[cfg(feature = "dev")]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod openapi;
+#[cfg(test)]
+mod tests;
 mod user;
 mod ws;
 

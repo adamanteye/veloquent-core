@@ -56,7 +56,6 @@ publish.workspace = true
 version.workspace = true
 
 [features]
-default = ["dev"]
 dev = [
   "utoipa/axum_extras",
   "utoipa/chrono",

@@ -8,7 +8,7 @@ RUN mkdir src && echo 'fn main() {}' > src/main.rs \
     && sed -i '/^migration = {.*path =.*}$/d' Cargo.toml \
     && cargo fetch
 COPY . .
-RUN cargo build --release
+RUN cargo build --release --features "dev"
 
 FROM alpine:3.20 as runner
 COPY --from=builder /usr/src/veloquent-core/target/release/veloquent-core /usr/local/bin/veloquent-core

@@ -21,7 +21,6 @@ pub mod utility;
 pub mod view;
 
 use config::Config;
-use migration::{Migrator, MigratorTrait};
 use param::Args;
 use view::AppState;
 
@@ -71,6 +70,13 @@ async fn main() -> Result<()> {
     );
     #[cfg(feature = "dev")]
     {
+        use migration::{Migrator, MigratorTrait};
+        use sea_orm::ConnectionTrait;
+        db.execute(sea_orm::Statement::from_string(
+            sea_orm::DatabaseBackend::Postgres,
+            "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";".to_owned(),
+        ))
+        .await?;
         Migrator::up(&db, None).await?;
         event!(Level::WARN, "migrated database");
     }

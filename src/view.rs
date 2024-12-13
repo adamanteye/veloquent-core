@@ -48,8 +48,8 @@ mod history;
 mod login;
 mod message;
 #[cfg(feature = "dev")]
-#[cfg_attr(coverage_nightly, coverage(off))]
 mod openapi;
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[cfg(test)]
 mod tests;
 mod user;

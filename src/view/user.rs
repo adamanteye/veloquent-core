@@ -150,7 +150,8 @@ impl From<user::Model> for UserProfile {
 }
 
 #[cfg(test)]
-mod test {
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
     use super::*;
     use std::str::FromStr;
 

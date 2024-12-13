@@ -6,7 +6,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use sea_orm::{ConnectOptions, Database};
+use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseBackend};
 
 async fn connect_db_from_env() -> DatabaseConnection {
     use std::env;
@@ -23,6 +23,18 @@ async fn connect_db_from_env() -> DatabaseConnection {
 }
 
 async fn create_app_state() -> AppState {
+    use migration::MigratorTrait;
+    let conn = connect_db_from_env().await;
+    migration::Migrator::down(&conn, Some(migration::Migrator::migrations().len() as u32))
+        .await
+        .unwrap();
+    conn.execute(Statement::from_string(
+        DatabaseBackend::Postgres,
+        "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";".to_owned(),
+    ))
+    .await
+    .unwrap();
+    migration::Migrator::up(&conn, None).await.unwrap();
     AppState {
         conn: connect_db_from_env().await,
         ws_pool: WebSocketPool::default(),
@@ -50,23 +62,22 @@ async fn start_http_server(addr: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn request_doc(addr: &str) -> Request<Body> {
+    Request::builder()
+        .uri(format!("{}/doc/", addr))
+        .body(Body::empty())
+        .unwrap()
+}
+
 #[tokio::test]
 async fn integration() {
     let addr = "127.0.0.1:8000";
     tokio::spawn(start_http_server(addr));
     let addr = format!("http://{addr}");
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
     let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
         .build_http();
-    let response = client
-        .request(
-            Request::builder()
-                .uri(format!("{}/doc/", addr))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
     // test if swagger doc is available
+    let response = client.request(request_doc(&addr)).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 }

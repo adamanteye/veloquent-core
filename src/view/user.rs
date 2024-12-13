@@ -6,6 +6,7 @@ use utility::{gen_hash_and_salt, good_email, good_phone};
 /// 用户创建请求体
 ///
 /// 不提供该字段表示不进行设置或修改, 提供空字符串表示置为默认
+#[cfg_attr(test, derive(Serialize))]
 #[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct RegisterProfile {

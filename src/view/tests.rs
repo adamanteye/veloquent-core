@@ -1,7 +1,7 @@
 use super::*;
 
-use crate::jwt;
-use crate::utility;
+use super::user;
+use crate::{jwt, utility};
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -25,9 +25,7 @@ async fn connect_db_from_env() -> DatabaseConnection {
 async fn create_app_state() -> AppState {
     use migration::MigratorTrait;
     let conn = connect_db_from_env().await;
-    migration::Migrator::down(&conn, Some(migration::Migrator::migrations().len() as u32))
-        .await
-        .unwrap();
+    migration::Migrator::down(&conn, Some(8)).await.unwrap();
     conn.execute(Statement::from_string(
         DatabaseBackend::Postgres,
         "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";".to_owned(),
@@ -64,8 +62,29 @@ async fn start_http_server(addr: &str) -> anyhow::Result<()> {
 
 fn request_doc(addr: &str) -> Request<Body> {
     Request::builder()
-        .uri(format!("{}/doc/", addr))
+        .uri(format!("{addr}/doc/"))
         .body(Body::empty())
+        .unwrap()
+}
+
+fn request_register(addr: &str) -> Request<Body> {
+    Request::builder()
+        .uri(format!("{addr}/register"))
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(
+            serde_json::to_vec(&user::RegisterProfile {
+                name: "test_user".to_string(),
+                alias: None,
+                phone: "18999990000".to_string(),
+                gender: Some(1),
+                bio: None,
+                link: None,
+                password: "123456".to_string(),
+                email: "test@example.com".to_string(),
+            })
+            .unwrap(),
+        ))
         .unwrap()
 }
 
@@ -80,4 +99,7 @@ async fn integration() {
     // test if swagger doc is available
     let response = client.request(request_doc(&addr)).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
+    // test if register is available
+    let response = client.request(request_register(&addr)).await.unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
 }

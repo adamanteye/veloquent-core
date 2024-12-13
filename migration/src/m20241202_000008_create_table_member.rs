@@ -71,7 +71,7 @@ impl MigrationTrait for Migration {
             .drop_foreign_key(
                 ForeignKey::drop()
                     .name("FK_MEMBER_GROUP_GROUP_ID")
-                    .table(Group::Table)
+                    .table(Member::Table)
                     .to_owned(),
             )
             .await?;
@@ -79,12 +79,12 @@ impl MigrationTrait for Migration {
             .drop_foreign_key(
                 ForeignKey::drop()
                     .name("FK_MEMBER_USER_USER_ID")
-                    .table(Group::Table)
+                    .table(Member::Table)
                     .to_owned(),
             )
             .await?;
         manager
-            .drop_table(Table::drop().table(Group::Table).to_owned())
+            .drop_table(Table::drop().table(Member::Table).to_owned())
             .await
     }
 }

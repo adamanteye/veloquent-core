@@ -437,6 +437,7 @@ mod tests {
             .send(tungstenite::Message::text(&user_1_token))
             .await
             .is_ok());
+        let socket_1 = Arc::new(Mutex::new(socket_1));
         let res_to_json = |res: Response<hyper::body::Incoming>| async {
             res.into_body()
                 .collect()
@@ -477,6 +478,7 @@ mod tests {
             .send(tungstenite::Message::text(&user_2_token))
             .await
             .is_ok());
+        let socket_2 = Arc::new(Mutex::new(socket_2));
         let user_3: login::LoginResponse = serde_json::from_reader(
             res_to_json(
                 client
@@ -509,11 +511,13 @@ mod tests {
             .send(tungstenite::Message::text(&user_3_token))
             .await
             .is_ok());
+        let socket_3 = Arc::new(Mutex::new(socket_3));
         let task = tokio::task::spawn(async move {
-            let feed_2: feed::Notification = match socket_2.next().await.unwrap().unwrap() {
-                tungstenite::Message::Text(msg) => serde_json::from_str(&msg).unwrap(),
-                _ => panic!("unexpected message"),
-            };
+            let feed_2: feed::Notification =
+                match socket_2.lock().await.next().await.unwrap().unwrap() {
+                    tungstenite::Message::Text(msg) => serde_json::from_str(&msg).unwrap(),
+                    _ => panic!("unexpected message"),
+                };
             let feed_2 = match feed_2 {
                 feed::Notification::ContactRequests { items } => items,
                 _ => panic!("unexpected message"),
@@ -539,11 +543,26 @@ mod tests {
         .unwrap();
         assert_eq!(response.num, 1);
         assert_eq!(response.items[0].id, user_1);
+        let socket = socket_1.clone();
+        let task = tokio::task::spawn(async move {
+            let feed: feed::Notification = match socket.lock().await.next().await.unwrap().unwrap()
+            {
+                tungstenite::Message::Text(msg) => serde_json::from_str(&msg).unwrap(),
+                _ => panic!("unexpected message"),
+            };
+            let feed = match feed {
+                feed::Notification::ContactRequests { items } => items,
+                _ => panic!("unexpected message"),
+            };
+            assert_eq!(feed.num, 1);
+            assert_eq!(feed.items[0].id, user_3);
+        });
         let response = client
             .request(request_add_contact(&addr, &user_3_token, user_1))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        task.await.unwrap();
         let response = client
             .request(request_add_contact(&addr, &user_3_token, user_3))
             .await
@@ -554,11 +573,26 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        let socket = socket_1.clone();
+        let task = tokio::task::spawn(async move {
+            let feed: feed::Notification = match socket.lock().await.next().await.unwrap().unwrap()
+            {
+                tungstenite::Message::Text(msg) => serde_json::from_str(&msg).unwrap(),
+                _ => panic!("unexpected message"),
+            };
+            let feed = match feed {
+                feed::Notification::ContactAccepts { items } => items,
+                _ => panic!("unexpected message"),
+            };
+            assert_eq!(feed.num, 1);
+            assert_eq!(feed.items[0].id, user_2);
+        });
         let response = client
             .request(request_accept_contact(&addr, &user_2_token, user_1))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        task.await.unwrap();
         let response: contact::ContactList = serde_json::from_reader(
             res_to_json(
                 client
@@ -581,5 +615,28 @@ mod tests {
         )
         .unwrap();
         assert_eq!(response.num, 0);
+        // user_1 and user_2 are now friends
+        let consume_msg = |socket: Arc<
+            tokio::sync::Mutex<
+                tokio_tungstenite::WebSocketStream<
+                    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+                >,
+            >,
+        >| async move {
+            let _ = socket.lock().await.next().await.unwrap();
+        };
+        let response = client
+            .request(request_add_contact(&addr, &user_1_token, user_3))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        consume_msg(socket_3).await;
+        let response = client
+            .request(request_accept_contact(&addr, &user_3_token, user_1))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        consume_msg(socket_1).await;
+        // user_1 and user_3 are now friends
     }
 }

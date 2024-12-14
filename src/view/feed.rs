@@ -9,6 +9,7 @@ use contact::ContactList;
 
 /// 用户或群聊的消息更新
 #[derive(Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 pub struct FeedItem {
     /// 用户或群聊的 UUID
     id: Uuid,
@@ -20,6 +21,7 @@ pub struct FeedItem {
 
 /// 群聊的用户更新
 #[derive(Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 pub struct GroupUpdate {
     pub group: Uuid,
     pub user: Uuid,
@@ -27,6 +29,7 @@ pub struct GroupUpdate {
 
 /// 新消息通知
 #[cfg_attr(feature = "dev", derive(ToSchema))]
+#[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize)]
 #[serde(tag = "type")]
 pub enum Notification {

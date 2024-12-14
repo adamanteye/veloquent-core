@@ -209,7 +209,7 @@ mod tests {
         body::Body,
         http::{self, Request, StatusCode},
     };
-    use futures::SinkExt;
+    use futures::{SinkExt, StreamExt};
     use http_body_util::BodyExt;
     use hyper::body::Buf;
     use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseBackend};
@@ -267,6 +267,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "dev")]
     fn request_doc(addr: &str) -> Request<Body> {
         Request::builder()
             .uri(format!("{addr}/doc/"))
@@ -280,60 +281,10 @@ mod tests {
             .method("POST")
     }
 
-    fn request_register(addr: &str) -> Request<Body> {
+    fn request_register(addr: &str, user: user::RegisterProfile) -> Request<Body> {
         request_post_json()
             .uri(format!("{addr}/register"))
-            .body(Body::from(
-                serde_json::to_vec(&user::RegisterProfile {
-                    name: "test_user_1".to_string(),
-                    alias: None,
-                    phone: "18999990000".to_string(),
-                    gender: Some(1),
-                    bio: None,
-                    link: None,
-                    password: "123456".to_string(),
-                    email: "test@example.com".to_string(),
-                })
-                .unwrap(),
-            ))
-            .unwrap()
-    }
-
-    fn request_same_email_register(addr: &str) -> Request<Body> {
-        request_post_json()
-            .uri(format!("{addr}/register"))
-            .body(Body::from(
-                serde_json::to_vec(&user::RegisterProfile {
-                    name: "test_user_2".to_string(),
-                    alias: None,
-                    phone: "18999990001".to_string(),
-                    gender: Some(1),
-                    bio: None,
-                    link: None,
-                    password: "123456".to_string(),
-                    email: "test@example.com".to_string(),
-                })
-                .unwrap(),
-            ))
-            .unwrap()
-    }
-
-    fn request_bad_phone(addr: &str) -> Request<Body> {
-        request_post_json()
-            .uri(format!("{addr}/register"))
-            .body(Body::from(
-                serde_json::to_vec(&user::RegisterProfile {
-                    name: "test_user_3".to_string(),
-                    alias: None,
-                    phone: "18999990".to_string(),
-                    gender: Some(1),
-                    bio: None,
-                    link: None,
-                    password: "123456".to_string(),
-                    email: "test_3@example.com".to_string(),
-                })
-                .unwrap(),
-            ))
+            .body(Body::from(serde_json::to_vec(&user).unwrap()))
             .unwrap()
     }
 
@@ -350,6 +301,58 @@ mod tests {
             .unwrap()
     }
 
+    fn request_add_contact(addr: &str, token: &str, id: Uuid) -> Request<Body> {
+        request_post_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/contact/new/{id}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn request_get_json() -> http::request::Builder {
+        Request::builder()
+            .header("Content-Type", "application/json")
+            .method("GET")
+    }
+
+    fn request_get_new_contacts(addr: &str, token: &str) -> Request<Body> {
+        request_get_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/contact/new"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn request_put_json() -> http::request::Builder {
+        Request::builder()
+            .header("Content-Type", "application/json")
+            .method("PUT")
+    }
+
+    fn request_reject_contact(addr: &str, token: &str, id: Uuid) -> Request<Body> {
+        request_put_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/contact/reject/{id}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn request_accept_contact(addr: &str, token: &str, id: Uuid) -> Request<Body> {
+        request_post_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/contact/accept/{id}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn request_get_contacts(addr: &str, token: &str) -> Request<Body> {
+        request_get_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/contact/list"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn integration() {
         let addr = "127.0.0.1:8000";
@@ -360,33 +363,223 @@ mod tests {
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
                 .build_http();
         // test if swagger doc is available
-        let response = client.request(request_doc(&addr)).await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
+        #[cfg(feature = "dev")]
+        {
+            let response = client.request(request_doc(&addr)).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+        }
         // test if register is available
-        let response = client.request(request_register(&addr)).await.unwrap();
+        let response = client
+            .request(request_register(
+                &addr,
+                user::RegisterProfile {
+                    name: "test_user_1".to_string(),
+                    alias: None,
+                    phone: "18999990000".to_string(),
+                    gender: Some(1),
+                    bio: None,
+                    link: None,
+                    password: "123456".to_string(),
+                    email: "test@example.com".to_string(),
+                },
+            ))
+            .await
+            .unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
         // test if register with same email is rejected
         let response = client
-            .request(request_same_email_register(&addr))
+            .request(request_register(
+                &addr,
+                user::RegisterProfile {
+                    name: "test_user_2".to_string(),
+                    alias: None,
+                    phone: "18999990001".to_string(),
+                    gender: Some(1),
+                    bio: None,
+                    link: None,
+                    password: "123456".to_string(),
+                    email: "test@example.com".to_string(),
+                },
+            ))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         // test if register with bad phone is rejected
-        let response = client.request(request_bad_phone(&addr)).await.unwrap();
+        let response = client
+            .request(request_register(
+                &addr,
+                user::RegisterProfile {
+                    name: "test_user_3".to_string(),
+                    alias: None,
+                    phone: "18999990".to_string(),
+                    gender: Some(1),
+                    bio: None,
+                    link: None,
+                    password: "123456".to_string(),
+                    email: "test_3@example.com".to_string(),
+                },
+            ))
+            .await
+            .unwrap();
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         // test if login is available
         let response = client.request(request_login(&addr)).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let token = response.into_body().collect().await.unwrap().aggregate();
         let token: login::LoginResponse = serde_json::from_reader(token.reader()).unwrap();
-        let token = token.token;
-        let (mut socket, _response) =
+        let user_1_token = token.token;
+        let user_1 = jwt::JWTPayload::try_from(user_1_token.as_str()).unwrap().id;
+        let (mut socket_1, _response) =
             tokio_tungstenite::connect_async(format!("ws://127.0.0.1:8000/ws"))
                 .await
                 .unwrap();
-        assert!(socket
-            .send(tungstenite::Message::text(&token))
+        assert!(socket_1
+            .send(tungstenite::Message::text(&user_1_token))
             .await
             .is_ok());
+        let res_to_json = |res: Response<hyper::body::Incoming>| async {
+            res.into_body()
+                .collect()
+                .await
+                .unwrap()
+                .aggregate()
+                .reader()
+        };
+        let user_2: login::LoginResponse = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_register(
+                        &addr,
+                        user::RegisterProfile {
+                            name: "test_user_2".to_string(),
+                            alias: None,
+                            phone: "18999990002".to_string(),
+                            gender: Some(1),
+                            bio: None,
+                            link: None,
+                            password: "123456".to_string(),
+                            email: "test_2@example.com".to_string(),
+                        },
+                    ))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        let user_2_token = user_2.token;
+        let user_2 = jwt::JWTPayload::try_from(user_2_token.as_str()).unwrap().id;
+        let (mut socket_2, _response) =
+            tokio_tungstenite::connect_async(format!("ws://127.0.0.1:8000/ws"))
+                .await
+                .unwrap();
+        assert!(socket_2
+            .send(tungstenite::Message::text(&user_2_token))
+            .await
+            .is_ok());
+        let user_3: login::LoginResponse = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_register(
+                        &addr,
+                        user::RegisterProfile {
+                            name: "test_user_3".to_string(),
+                            alias: None,
+                            phone: "18999990003".to_string(),
+                            gender: Some(1),
+                            bio: None,
+                            link: None,
+                            password: "123456".to_string(),
+                            email: "test_3@example.com".to_string(),
+                        },
+                    ))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        let user_3_token = user_3.token;
+        let user_3 = jwt::JWTPayload::try_from(user_3_token.as_str()).unwrap().id;
+        let (mut socket_3, _response) =
+            tokio_tungstenite::connect_async(format!("ws://127.0.0.1:8000/ws"))
+                .await
+                .unwrap();
+        assert!(socket_3
+            .send(tungstenite::Message::text(&user_3_token))
+            .await
+            .is_ok());
+        let task = tokio::task::spawn(async move {
+            let feed_2: feed::Notification = match socket_2.next().await.unwrap().unwrap() {
+                tungstenite::Message::Text(msg) => serde_json::from_str(&msg).unwrap(),
+                _ => panic!("unexpected message"),
+            };
+            let feed_2 = match feed_2 {
+                feed::Notification::ContactRequests { items } => items,
+                _ => panic!("unexpected message"),
+            };
+            assert_eq!(feed_2.num, 1);
+            assert_eq!(feed_2.items[0].id, user_1);
+        });
+        let response = client
+            .request(request_add_contact(&addr, &user_1_token, user_2))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        task.await.unwrap();
+        let response: contact::ContactList = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_get_new_contacts(&addr, &user_2_token))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert_eq!(response.num, 1);
+        assert_eq!(response.items[0].id, user_1);
+        let response = client
+            .request(request_add_contact(&addr, &user_3_token, user_1))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response = client
+            .request(request_add_contact(&addr, &user_3_token, user_3))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let response = client
+            .request(request_reject_contact(&addr, &user_1_token, user_3))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response = client
+            .request(request_accept_contact(&addr, &user_2_token, user_1))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response: contact::ContactList = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_get_contacts(&addr, &user_2_token))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert_eq!(response.num, 1);
+        let response: contact::ContactList = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_get_new_contacts(&addr, &user_2_token))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert_eq!(response.num, 0);
     }
 }

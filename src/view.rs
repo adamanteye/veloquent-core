@@ -288,16 +288,10 @@ mod tests {
             .unwrap()
     }
 
-    fn request_login(addr: &str) -> Request<Body> {
+    fn request_login(addr: &str, req: login::LoginRequest) -> Request<Body> {
         request_post_json()
             .uri(format!("{addr}/login"))
-            .body(Body::from(
-                serde_json::to_vec(&login::LoginRequest {
-                    name: "test_user_1".to_string(),
-                    password: "123456".to_string(),
-                })
-                .unwrap(),
-            ))
+            .body(Body::from(serde_json::to_vec(&req).unwrap()))
             .unwrap()
     }
 
@@ -350,6 +344,18 @@ mod tests {
             .header("Authorization", format!("Bearer {token}"))
             .uri(format!("{addr}/contact/list"))
             .body(Body::empty())
+            .unwrap()
+    }
+
+    fn request_edit_user(
+        addr: &str,
+        token: &str,
+        edition: user::UserProfileEdition,
+    ) -> Request<Body> {
+        request_put_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/user/profile"))
+            .body(Body::from(serde_json::to_vec(&edition).unwrap()))
             .unwrap()
     }
 
@@ -423,7 +429,16 @@ mod tests {
             .unwrap();
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         // test if login is available
-        let response = client.request(request_login(&addr)).await.unwrap();
+        let response = client
+            .request(request_login(
+                &addr,
+                login::LoginRequest {
+                    name: "test_user_1".to_string(),
+                    password: "123456".to_string(),
+                },
+            ))
+            .await
+            .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let token = response.into_body().collect().await.unwrap().aggregate();
         let token: login::LoginResponse = serde_json::from_reader(token.reader()).unwrap();
@@ -638,5 +653,22 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         consume_msg(socket_1).await;
         // user_1 and user_3 are now friends
+        let response = client
+            .request(request_edit_user(
+                &addr,
+                &user_1_token,
+                user::UserProfileEdition {
+                    name: Some("test_user1".to_string()),
+                    alias: Some("monika".to_string()),
+                    bio: Some("test_bio".to_string()),
+                    link: None,
+                    phone: None,
+                    email: None,
+                    gender: None,
+                },
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 }

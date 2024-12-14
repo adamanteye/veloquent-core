@@ -259,20 +259,42 @@ pub async fn get_profile_handler(
 
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 #[derive(Clone, Debug, Deserialize)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct UserProfileEdition {
     /// 用户名
+    #[cfg(test)]
+    pub name: Option<String>,
+    #[cfg(not(test))]
     pub name: Option<String>,
     /// 别名
+    #[cfg(test)]
+    pub alias: Option<String>,
+    #[cfg(not(test))]
     pub alias: Option<String>,
     /// 邮箱
+    #[cfg(test)]
+    pub email: Option<String>,
+    #[cfg(not(test))]
     pub email: Option<String>,
     /// 电话
+    #[cfg(test)]
+    pub phone: Option<String>,
+    #[cfg(not(test))]
     pub phone: Option<String>,
     /// 个人链接
+    #[cfg(test)]
+    pub link: Option<String>,
+    #[cfg(not(test))]
     pub link: Option<String>,
     /// 性别
+    #[cfg(test)]
+    pub gender: Option<i32>,
+    #[cfg(not(test))]
     pub gender: Option<i32>,
     /// 个性简介
+    #[cfg(test)]
+    pub bio: Option<String>,
+    #[cfg(not(test))]
     pub bio: Option<String>,
 }
 

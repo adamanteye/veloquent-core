@@ -277,7 +277,7 @@ pub async fn accept_contact_handler(
             state
                 .ws_pool
                 .notify(
-                    user.id,
+                    con.id,
                     WebSocketMessage::Text(serde_json::to_string(&data).unwrap()),
                 )
                 .await;

@@ -44,7 +44,10 @@ sea-query = "0.31.1"
 sha2 = "0.10.8"
 uuid = "1.10.0"
 # testing
+http-body-util = "0.1"
+hyper = "1.4"
 hyper-util = "0.1"
+tokio-tungstenite = "0.23"
 
 [package]
 authors.workspace = true
@@ -100,4 +103,7 @@ utoipa-swagger-ui = {workspace = true, optional = true}
 uuid = {workspace = true, features = ["v5", "fast-rng"]}
 
 [dev-dependencies]
-hyper-util = {workspace = true, features = ["client", "client-legacy"]}
+http-body-util = {workspace = true}
+hyper = {workspace = true}
+hyper-util = {workspace = true, features = ["client", "http1", "client-legacy"]}
+tokio-tungstenite = {workspace = true}

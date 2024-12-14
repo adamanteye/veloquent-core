@@ -4,13 +4,20 @@ use utility::validate_passwd;
 
 /// 登录请求体
 #[derive(Deserialize, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct LoginRequest {
     /// 用户名
     #[cfg_attr(feature = "dev", schema(example = "yangzheh"))]
+    #[cfg(test)]
+    pub name: String,
+    #[cfg(not(test))]
     name: String,
     /// 密码
     #[cfg_attr(feature = "dev", schema(example = "123456"))]
+    #[cfg(test)]
+    pub password: String,
+    #[cfg(not(test))]
     password: String,
 }
 
@@ -36,6 +43,7 @@ impl LoginRequest {
 
 /// 登录响应体
 #[cfg_attr(feature = "dev", derive(ToSchema))]
+#[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize)]
 pub struct LoginResponse {
     /// JWT token

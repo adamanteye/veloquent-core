@@ -11,11 +11,21 @@ use utility::{gen_hash_and_salt, good_email, good_phone};
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct RegisterProfile {
     /// 用户名
+    #[cfg(test)]
     pub name: String,
+    #[cfg(not(test))]
+    name: String,
     /// 别名
+    #[cfg(test)]
     pub alias: Option<String>,
+    #[cfg(not(test))]
+    alias: Option<String>,
+
     /// 电话号码
+    #[cfg(test)]
     pub phone: String,
+    #[cfg(not(test))]
+    phone: String,
     /// 性别
     ///
     /// | 数值 | 说明 |
@@ -23,15 +33,34 @@ pub struct RegisterProfile {
     /// | 0 | 未指定 |
     /// | 1 | 女性 |
     /// | 2 | 男性 |
+    #[cfg(test)]
     pub gender: Option<i32>,
+    #[cfg(not(test))]
+    gender: Option<i32>,
+
     /// 个性简介
+    #[cfg(test)]
     pub bio: Option<String>,
+    #[cfg(not(test))]
+    bio: Option<String>,
+
     /// 个人链接
+    #[cfg(test)]
     pub link: Option<String>,
+    #[cfg(not(test))]
+    link: Option<String>,
+
     /// 密码
+    #[cfg(test)]
     pub password: String,
+    #[cfg(not(test))]
+    password: String,
+
     /// 邮件地址
+    #[cfg(test)]
     pub email: String,
+    #[cfg(not(test))]
+    email: String,
 }
 
 impl user::Model {

@@ -94,17 +94,17 @@ pub async fn add_contact_handler(
     contact::Model::is_user_and_ref_exist(con.id, user.id, &state.conn).await?;
     let s = session::ActiveModel::default();
     let s = Session::insert(s).exec(&state.conn).await?.last_insert_id;
-    let c = contact::ActiveModel::from((user.id, con.id, con.alias, s));
+    let c = contact::ActiveModel::from((user.id, con.id, con.alias.clone(), s));
     Contact::insert(c).exec(&state.conn).await?;
     event!(Level::DEBUG, "create new session [{}]", s);
     event!(Level::DEBUG, "user [{}] add [{}]", user.id, con.id);
     tokio::task::spawn(async move {
-        if let Ok(data) = ContactList::query_new_contact(user, &state.conn).await {
+        if let Ok(data) = ContactList::query_new_contact(con, &state.conn).await {
             let data = Notification::ContactRequests { items: data };
             state
                 .ws_pool
                 .notify(
-                    con.id,
+                    contact,
                     WebSocketMessage::Text(serde_json::to_string(&data).unwrap()),
                 )
                 .await;
@@ -290,20 +290,31 @@ pub async fn accept_contact_handler(
 ///
 /// 用于返回好友列表与返回好友申请
 #[derive(Serialize, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct ContactList {
     /// 好友(申请)数量
+    #[cfg(test)]
+    pub num: i32,
+    #[cfg(not(test))]
     num: i32,
     /// 好友(申请者)的 UUID
+    #[cfg(test)]
+    pub items: Vec<Chat>,
+    #[cfg(not(test))]
     items: Vec<Chat>,
 }
 
 #[derive(Serialize, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 pub struct Chat {
     /// 好友(申请者)的 UUID
     ///
     /// 在通知中, 也可以表示群聊的 UUID
+    #[cfg(test)]
+    pub id: Uuid,
+    #[cfg(not(test))]
     id: Uuid,
     /// 会话
     session: Uuid,

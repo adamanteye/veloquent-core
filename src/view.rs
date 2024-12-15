@@ -399,6 +399,14 @@ mod tests {
             .unwrap()
     }
 
+    fn request_edit_group(addr: &str, token: &str, group: Uuid, params: &str) -> Request<Body> {
+        request_put_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/group/edit/{group}{params}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
     fn request_group_invite(
         addr: &str,
         token: &str,
@@ -893,6 +901,18 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        // user 3 is now a member of the group
+        // test if user can edit group
+        let response = client
+            .request(request_edit_group(
+                &addr,
+                &user_3_token,
+                group.id,
+                "?pin=true",
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
         // test if group owner can be transferred
         let response = client
             .request(request_group_manage(
@@ -970,7 +990,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(350)).await;
         // test if user can get message from group
         let history: history::History = serde_json::from_reader(
             res_to_json(

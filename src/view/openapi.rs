@@ -6,7 +6,7 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        login::login_handler, login::renew_handler,
+        login::login_handler, login::renew_handler, login::logout_handler,
         user::register_handler,
         user::get_profile_handler, user::update_profile_handler,
         user::delete_user_handler,

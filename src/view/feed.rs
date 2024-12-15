@@ -5,6 +5,7 @@ use entity::{
     prelude::{Feed, Message},
 };
 
+use super::message::ReadAt;
 use contact::ContactList;
 
 /// 用户或群聊的消息更新
@@ -27,28 +28,55 @@ pub struct GroupUpdate {
     pub user: Uuid,
 }
 
+#[cfg_attr(feature = "dev", derive(ToSchema))]
+#[derive(Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
+pub struct ReadMsg {
+    pub msg: Uuid,
+    pub read_ats: Vec<ReadAt>,
+}
+
 /// 新消息通知
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 #[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize)]
 #[serde(tag = "type")]
 pub enum Notification {
+    Reads {
+        feeds: Vec<ReadMsg>,
+    },
     /// 群聊新消息
-    Groups { feeds: Vec<FeedItem> },
+    Groups {
+        feeds: Vec<FeedItem>,
+    },
     /// 双人聊天新消息
-    Chats { feeds: Vec<FeedItem> },
+    Chats {
+        feeds: Vec<FeedItem>,
+    },
     /// 群聊新公告
-    Notices { feeds: Vec<FeedItem> },
+    Notices {
+        feeds: Vec<FeedItem>,
+    },
     /// 新的希望添加自己的联系人
-    ContactRequests { items: ContactList },
+    ContactRequests {
+        items: ContactList,
+    },
     /// 新的被接受的联系人添加请求
-    ContactAccepts { items: ContactList },
+    ContactAccepts {
+        items: ContactList,
+    },
     /// 新的加入群组邀请
-    GroupInvites { items: Vec<GroupUpdate> },
+    GroupInvites {
+        items: Vec<GroupUpdate>,
+    },
     /// 新的希望加入自己管理的群组的请求
-    GroupRequests { items: Vec<GroupUpdate> },
+    GroupRequests {
+        items: Vec<GroupUpdate>,
+    },
     /// 新的接受加入群组通知
-    GroupAccepts { items: Vec<GroupUpdate> },
+    GroupAccepts {
+        items: Vec<GroupUpdate>,
+    },
 }
 
 async fn count_unread_msgs(

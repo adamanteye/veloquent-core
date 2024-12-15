@@ -132,6 +132,9 @@ pub struct GroupProfile {
     #[cfg(not(test))]
     owner: Uuid,
     /// 群聊唯一主键
+    #[cfg(test)]
+    pub id: Uuid,
+    #[cfg(not(test))]
     id: Uuid,
     /// 群聊会话 UUID
     session: Uuid,

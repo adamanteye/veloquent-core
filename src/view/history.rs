@@ -1,3 +1,4 @@
+use super::feed::{Notification, ReadMsg};
 use super::message::{Msg, ReadAt, Reader};
 use super::*;
 use entity::{
@@ -7,7 +8,7 @@ use entity::{
 
 /// 聊天记录
 #[cfg_attr(feature = "dev", derive(ToSchema))]
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 pub struct History {
     /// 消息列表
     pub msgs: Vec<Msg>,
@@ -166,6 +167,40 @@ pub async fn get_history_handler(
     Path(session): Path<Uuid>,
 ) -> Result<Json<History>, AppError> {
     let history = History::find_by_session(params, &state.conn, session, payload.id).await?;
-    event!(Level::DEBUG, "get history");
+    let h = history.clone();
+    tokio::task::spawn(async move {
+        let mut reads_map: std::collections::HashMap<Uuid, Vec<ReadMsg>> =
+            std::collections::HashMap::new();
+        for msg in h.msgs {
+            if let Some(sender) = msg.sender {
+                {
+                    if let Some(v) = reads_map.get_mut(&sender) {
+                        v.push(ReadMsg {
+                            msg: msg.id,
+                            read_ats: msg.read_ats,
+                        })
+                    } else {
+                        reads_map.insert(
+                            sender,
+                            vec![ReadMsg {
+                                msg: msg.id,
+                                read_ats: msg.read_ats,
+                            }],
+                        );
+                    }
+                }
+            }
+        }
+        for (sender, read_msgs) in reads_map {
+            let notification = Notification::Reads { feeds: read_msgs };
+            state
+                .ws_pool
+                .notify(
+                    sender,
+                    WebSocketMessage::Text(serde_json::to_string(&notification).unwrap()),
+                )
+                .await;
+        }
+    });
     Ok(Json(history))
 }

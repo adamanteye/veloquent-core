@@ -74,20 +74,20 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 /// 消息
 pub struct Msg {
     /// 消息 UUID
-    id: Uuid,
+    pub id: Uuid,
     /// 创建时间戳, UTC 毫秒
     created_at: i64,
     /// 修改时间戳, UTC 毫秒
     edited_at: Option<i64>,
     /// 阅读者及阅读时间
-    read_ats: Vec<ReadAt>,
+    pub read_ats: Vec<ReadAt>,
     /// 发送者 UUID
-    sender: Option<Uuid>,
+    pub sender: Option<Uuid>,
     /// 引用消息的 UUID
     cite: Option<Uuid>,
     /// 消息类型
@@ -100,8 +100,9 @@ pub struct Msg {
     session: Uuid,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
+#[cfg_attr(test, derive(Deserialize))]
 pub struct ReadAt {
     /// 阅读者 UUID
     reader: Uuid,

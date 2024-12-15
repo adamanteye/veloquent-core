@@ -387,6 +387,43 @@ mod tests {
             .unwrap()
     }
 
+    fn request_group_invite(
+        addr: &str,
+        token: &str,
+        group: Uuid,
+        users: Vec<Uuid>,
+    ) -> Request<Body> {
+        request_post_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/group/invite/{group}"))
+            .body(Body::from(serde_json::to_vec(&users).unwrap()))
+            .unwrap()
+    }
+
+    fn request_group_view(addr: &str, token: &str, group: Uuid) -> Request<Body> {
+        request_get_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/group/manage/{group}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn request_group_manage(addr: &str, token: &str, group: Uuid, params: &str) -> Request<Body> {
+        request_put_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/group/manage/{group}{params}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn request_group_approve(addr: &str, token: &str, group: Uuid, params: &str) -> Request<Body> {
+        request_put_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/group/approve/{group}{params}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn integration() {
         let addr = "127.0.0.1:8000";
@@ -679,7 +716,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        consume_msg(socket_1).await;
+        consume_msg(socket_1.clone()).await;
         // user_1 and user_3 are now friends
         // test if user can be deleted
         let user: login::LoginResponse = serde_json::from_reader(
@@ -760,5 +797,67 @@ mod tests {
         assert!(group.members.contains(&user_1));
         assert!(group.members.contains(&user_2));
         assert_eq!(group.owner, user_1);
+        // test if group member can invite users
+        // test if group owner can receive notification
+        let socket = socket_1.clone();
+        let task = tokio::task::spawn(async move {
+            let feed: feed::Notification = match socket.lock().await.next().await.unwrap().unwrap()
+            {
+                tungstenite::Message::Text(msg) => serde_json::from_str(&msg).unwrap(),
+                _ => panic!("unexpected message"),
+            };
+            let feed = match feed {
+                feed::Notification::GroupRequests { items } => items,
+                _ => panic!("unexpected message"),
+            };
+            assert_eq!(feed[0].group, group.id);
+            assert_eq!(feed[0].user, user_3);
+        });
+        let response = client
+            .request(request_group_invite(
+                &addr,
+                &user_1_token,
+                group.id,
+                vec![user_3],
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        task.await.unwrap();
+        // test if group owner can manage admin
+        let response = client
+            .request(request_group_manage(
+                &addr,
+                &user_1_token,
+                group.id,
+                &format!("?admin={user_2}"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response: Vec<Uuid> = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_group_view(&addr, &user_1_token, group.id))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert!(!response.contains(&user_2));
+        assert!(!response.contains(&user_1));
+        assert!(response.contains(&user_3));
+        // test if group admin can approve invitation
+        let response = client
+            .request(request_group_approve(
+                &addr,
+                &user_2_token,
+                group.id,
+                &format!("?member={user_3}"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 }

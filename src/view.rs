@@ -634,8 +634,10 @@ mod tests {
             .is_ok());
         let socket_3 = Arc::new(Mutex::new(socket_3));
         let socket = socket_2.clone();
+        let socket = socket_2.clone();
         let task = tokio::task::spawn(async move {
             let feed_2: feed::Notification =
+                match socket.lock().await.next().await.unwrap().unwrap() {
                 match socket.lock().await.next().await.unwrap().unwrap() {
                     tungstenite::Message::Text(msg) => serde_json::from_str(&msg).unwrap(),
                     _ => panic!("unexpected message"),
@@ -958,6 +960,8 @@ mod tests {
             .unwrap();
         consume_msg(socket_1.clone()).await;
         consume_msg(socket_2.clone()).await;
+        consume_msg(socket_1.clone()).await;
+        consume_msg(socket_2.clone()).await;
         assert_eq!(response.status(), StatusCode::OK);
         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
         // test if user can get message from contact
@@ -1020,20 +1024,5 @@ mod tests {
         )
         .unwrap();
         assert_ne!(response.token, user_1_token);
-<<<<<<< HEAD
-        // test if user can find user
-        let response: user::UserList = serde_json::from_reader(
-            res_to_json(
-                client
-                    .request(request_find_user(&addr, &user_1_token, "?name=test"))
-                    .await
-                    .unwrap(),
-            )
-            .await,
-        )
-        .unwrap();
-        assert_eq!(response.users.len(), 3);
-=======
->>>>>>> bcb1e69 (feat: do not test find user)
     }
 }

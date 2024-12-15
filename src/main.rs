@@ -24,25 +24,7 @@ use config::Config;
 use param::Args;
 use view::AppState;
 
-#[doc(hidden)]
-#[instrument(name = "veloquent_main")]
-#[tokio::main]
-async fn main() -> Result<()> {
-    // see https://stackoverflow.com/questions/73247589/how-to-turn-off-tracing-events-emitted-by-other-crates
-    let filter = tracing_subscriber::EnvFilter::builder()
-        .with_default_directive(tracing_subscriber::filter::LevelFilter::WARN.into())
-        .from_env()?
-        .add_directive("veloquent_core=debug".parse()?);
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .compact()
-        .init();
-
-    let args = Args::parse();
-    let config_path = std::path::Path::new(args.config.as_str());
-    event!(Level::WARN, "reading configuration from {:?}", config_path);
-    let config = std::fs::read_to_string(config_path)?;
-    let config: Config = toml::from_str(config.as_str())?;
+async fn app(config: Config) -> Result<()> {
     event!(
         Level::INFO,
         "set upload directory to {:?}",
@@ -80,6 +62,19 @@ async fn main() -> Result<()> {
         Migrator::up(&db, None).await?;
         event!(Level::WARN, "migrated database");
     }
+    #[cfg(test)]
+    {
+        use migration::MigratorTrait;
+        use sea_orm::ConnectionTrait;
+        migration::Migrator::down(&db, Some(8)).await.unwrap();
+        db.execute(sea_orm::Statement::from_string(
+            sea_orm::DatabaseBackend::Postgres,
+            "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";".to_owned(),
+        ))
+        .await
+        .unwrap();
+        migration::Migrator::up(&db, None).await.unwrap();
+    }
     let secret = config.authentication.secret;
     jwt::JWT_SETTING.get_or_init(|| jwt::JwtSetting {
         exp: config.authentication.exp_after,
@@ -113,4 +108,25 @@ async fn main() -> Result<()> {
         .with_graceful_shutdown(utility::shutdown_signal())
         .await?;
     Ok(())
+}
+
+#[doc(hidden)]
+#[instrument(name = "veloquent_main")]
+#[tokio::main]
+async fn main() -> Result<()> {
+    // see https://stackoverflow.com/questions/73247589/how-to-turn-off-tracing-events-emitted-by-other-crates
+    let filter = tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(tracing_subscriber::filter::LevelFilter::WARN.into())
+        .from_env()?
+        .add_directive("veloquent_core=debug".parse()?);
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .compact()
+        .init();
+    let args = Args::parse();
+    let config_path = std::path::Path::new(args.config.as_str());
+    event!(Level::WARN, "reading configuration from {:?}", config_path);
+    let config = std::fs::read_to_string(config_path)?;
+    let config: Config = toml::from_str(config.as_str())?;
+    app(config).await
 }

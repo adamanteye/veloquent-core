@@ -504,7 +504,7 @@ pub async fn get_pending_contacts_handler(
 #[cfg_attr(feature = "dev",
 utoipa::path(
     get,
-    path = "/contact/category",
+    path = "/contact/categories",
     responses(
         (status = 200, description = "获取成功", body = Vec<String>)
     ),

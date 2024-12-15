@@ -449,6 +449,14 @@ mod tests {
             .unwrap()
     }
 
+    fn request_renew_jwt(addr: &str, token: &str) -> Request<Body> {
+        request_get_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/renew"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn integration() {
         let addr = "127.0.0.1:8000";
@@ -955,5 +963,17 @@ mod tests {
         .unwrap();
         assert_eq!(history.msgs.len(), 1);
         assert_eq!(history.msgs[0].content, Some("Hallo, Welt!".to_string()));
+        // test if user can renew jwt
+        let response: login::LoginResponse = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_renew_jwt(&addr, &user_1_token))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert_ne!(response.token, user_1_token);
     }
 }

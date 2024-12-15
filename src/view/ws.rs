@@ -19,6 +19,12 @@ impl WebSocketPool {
     }
 
     #[instrument(skip(self))]
+    pub async fn unregister(&mut self, user: Uuid) {
+        event!(Level::INFO, "registered websocket for user [{}]", user);
+        self.senders.remove(&user);
+    }
+
+    #[instrument(skip(self))]
     pub async fn notify(&self, user: Uuid, message: WebSocketMessage) {
         if let Some(ws) = self.senders.get_mut(&user) {
             event!(

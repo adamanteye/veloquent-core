@@ -87,6 +87,27 @@ pub async fn login_handler(
         .into_response())
 }
 
+/// 登出
+///
+/// 用于通知服务端注销 websocket
+#[cfg_attr(feature = "dev",
+utoipa::path(
+    delete,
+    path = "/logout",
+    responses(
+        (status = 200, description = "登出成功")
+    ),
+    tag = "user"
+))]
+#[instrument(skip(state))]
+pub async fn logout_handler(
+    State(mut state): State<AppState>,
+    payload: JWTPayload,
+) -> Result<impl IntoResponse, AppError> {
+    state.ws_pool.unregister(payload.id).await;
+    Ok(StatusCode::OK.into_response())
+}
+
 /// 刷新 JWT
 #[cfg_attr(feature = "dev",
 utoipa::path(

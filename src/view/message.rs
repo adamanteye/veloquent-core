@@ -9,6 +9,7 @@ use super::*;
 
 #[derive(Deserialize, Debug)]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
+#[cfg_attr(test, derive(Serialize))]
 pub struct MsgPost {
     /// 指示消息类型
     ///
@@ -17,18 +18,36 @@ pub struct MsgPost {
     /// | 0 | 文本 |
     /// | 1 | 图片 |
     /// | 2 | 文件 |
+    #[cfg(test)]
+    pub typ: i32,
+    #[cfg(not(test))]
     typ: i32,
     /// 消息内容
     ///
     /// 在消息的值为图片或文件时, 消息内容存储消息的文件名, 即需要先上传文件再发送消息
+    #[cfg(test)]
+    pub content: Option<String>,
+    #[cfg(not(test))]
     content: Option<String>,
     /// 引用消息的 UUID
+    #[cfg(test)]
+    pub cite: Option<Uuid>,
+    #[cfg(not(test))]
     cite: Option<Uuid>,
     /// 消息的文件 UUID
+    #[cfg(test)]
+    pub file: Option<Uuid>,
+    #[cfg(not(test))]
     file: Option<Uuid>,
     /// 转发消息的 UUID
+    #[cfg(test)]
+    pub forward: Option<Uuid>,
+    #[cfg(not(test))]
     forward: Option<Uuid>,
     /// 是否为通知
+    #[cfg(test)]
+    pub notice: Option<bool>,
+    #[cfg(not(test))]
     notice: Option<bool>,
 }
 

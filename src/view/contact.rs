@@ -317,6 +317,9 @@ pub struct Chat {
     #[cfg(not(test))]
     id: Uuid,
     /// 会话
+    #[cfg(test)]
+    pub session: Uuid,
+    #[cfg(not(test))]
     session: Uuid,
     /// 分类
     category: Option<String>,

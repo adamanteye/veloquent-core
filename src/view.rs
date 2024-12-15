@@ -84,6 +84,10 @@ pub fn router(state: AppState) -> Router {
         .route("/renew", get(login::renew_handler))
         .route("/register", post(user::register_handler))
         .route(
+            "/logout",
+            delete(login::logout_handler).route_layer(auth.clone()),
+        )
+        .route(
             "/user",
             get(user::find_user_handler).route_layer(auth.clone()),
         )
@@ -424,10 +428,24 @@ mod tests {
             .unwrap()
     }
 
+    fn request_msg_send(
+        addr: &str,
+        token: &str,
+        session: Uuid,
+        msg: super::message::MsgPost,
+    ) -> Request<Body> {
+        request_post_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/msg/session/{session}"))
+            .body(Body::from(serde_json::to_vec(&msg).unwrap()))
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn integration() {
         let addr = "127.0.0.1:8000";
         tokio::spawn(start_http_server(addr));
+        let ws_url = format!("ws://{addr}/ws");
         let addr = format!("http://{addr}");
         tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
         let client =
@@ -509,10 +527,7 @@ mod tests {
         let token: login::LoginResponse = serde_json::from_reader(token.reader()).unwrap();
         let user_1_token = token.token;
         let user_1 = jwt::JWTPayload::try_from(user_1_token.as_str()).unwrap().id;
-        let (mut socket_1, _response) =
-            tokio_tungstenite::connect_async(format!("ws://127.0.0.1:8000/ws"))
-                .await
-                .unwrap();
+        let (mut socket_1, _response) = tokio_tungstenite::connect_async(&ws_url).await.unwrap();
         assert!(socket_1
             .send(tungstenite::Message::text(&user_1_token))
             .await
@@ -550,10 +565,7 @@ mod tests {
         .unwrap();
         let user_2_token = user_2.token;
         let user_2 = jwt::JWTPayload::try_from(user_2_token.as_str()).unwrap().id;
-        let (mut socket_2, _response) =
-            tokio_tungstenite::connect_async(format!("ws://127.0.0.1:8000/ws"))
-                .await
-                .unwrap();
+        let (mut socket_2, _response) = tokio_tungstenite::connect_async(&ws_url).await.unwrap();
         assert!(socket_2
             .send(tungstenite::Message::text(&user_2_token))
             .await
@@ -583,10 +595,7 @@ mod tests {
         .unwrap();
         let user_3_token = user_3.token;
         let user_3 = jwt::JWTPayload::try_from(user_3_token.as_str()).unwrap().id;
-        let (mut socket_3, _response) =
-            tokio_tungstenite::connect_async(format!("ws://127.0.0.1:8000/ws"))
-                .await
-                .unwrap();
+        let (mut socket_3, _response) = tokio_tungstenite::connect_async(&ws_url).await.unwrap();
         assert!(socket_3
             .send(tungstenite::Message::text(&user_3_token))
             .await
@@ -684,6 +693,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(response.num, 1);
+        let chat_1_2 = response.items[0].session;
         let response: contact::ContactList = serde_json::from_reader(
             res_to_json(
                 client
@@ -717,7 +727,7 @@ mod tests {
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         consume_msg(socket_1.clone()).await;
-        // user_1 and user_3 are now friends
+        // user_1 and user_3 are now contacts
         // test if user can be deleted
         let user: login::LoginResponse = serde_json::from_reader(
             res_to_json(
@@ -855,6 +865,24 @@ mod tests {
                 &user_2_token,
                 group.id,
                 &format!("?member={user_3}"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        // test if user can send message to contact
+        let response = client
+            .request(request_msg_send(
+                &addr,
+                &user_1_token,
+                chat_1_2,
+                super::message::MsgPost {
+                    content: Some("hello, world".to_string()),
+                    typ: 0,
+                    cite: None,
+                    file: None,
+                    forward: None,
+                    notice: None,
+                },
             ))
             .await
             .unwrap();

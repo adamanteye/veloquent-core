@@ -332,8 +332,11 @@ pub async fn send_msg_handler(
                             if let Ok(feed) = FeedItem::from_chat(
                                 c.ref_user.unwrap_or(*UUID_NIL),
                                 session,
-                                msg.sender.unwrap_or(*UUID_NIL),
-                            ) {
+                                c.user,
+                                &state.conn,
+                            )
+                            .await
+                            {
                                 let notification = Notification::Chats { feeds: vec![feed] };
                                 state
                                     .ws_pool
@@ -378,17 +381,9 @@ pub async fn send_msg_handler(
                     {
                         Ok(_) => {
                             if let Ok(feed) = if notice {
-                                FeedItem::from_notice(
-                                    g.group,
-                                    session,
-                                    msg.sender.unwrap_or(*UUID_NIL),
-                                )
+                                FeedItem::from_notice(g.group, session, g.user, &state.conn).await
                             } else {
-                                FeedItem::from_group(
-                                    g.group,
-                                    session,
-                                    msg.sender.unwrap_or(*UUID_NIL),
-                                )
+                                FeedItem::from_group(g.group, session, g.user, &state.conn).await
                             } {
                                 let notification = if notice {
                                     Notification::Notices { feeds: vec![feed] }

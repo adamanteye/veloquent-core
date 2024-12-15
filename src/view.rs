@@ -428,7 +428,7 @@ mod tests {
             .unwrap()
     }
 
-    fn request_msg_send(
+    fn request_send_msg(
         addr: &str,
         token: &str,
         session: Uuid,
@@ -438,6 +438,14 @@ mod tests {
             .header("Authorization", format!("Bearer {token}"))
             .uri(format!("{addr}/msg/session/{session}"))
             .body(Body::from(serde_json::to_vec(&msg).unwrap()))
+            .unwrap()
+    }
+
+    fn request_get_msg(addr: &str, token: &str, session: Uuid) -> Request<Body> {
+        request_get_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/msg/session/{session}"))
+            .body(Body::empty())
             .unwrap()
     }
 
@@ -871,12 +879,12 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         // test if user can send message to contact
         let response = client
-            .request(request_msg_send(
+            .request(request_send_msg(
                 &addr,
                 &user_1_token,
                 chat_1_2,
                 super::message::MsgPost {
-                    content: Some("hello, world".to_string()),
+                    content: Some("Hello, world".to_string()),
                     typ: 0,
                     cite: None,
                     file: None,
@@ -887,5 +895,54 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        // test if user can get message from contact
+        let history: history::History = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_get_msg(&addr, &user_2_token, chat_1_2))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert_eq!(history.msgs.len(), 1);
+        assert_eq!(history.start, 0);
+        assert_eq!(history.end, 1);
+        assert_eq!(history.cnt, 1);
+        assert_eq!(history.msgs[0].content, Some("Hello, world".to_string()));
+        // test if user can send message to group
+        let response = client
+            .request(request_send_msg(
+                &addr,
+                &user_1_token,
+                group.session,
+                super::message::MsgPost {
+                    content: Some("Hallo, Welt!".to_string()),
+                    typ: 0,
+                    cite: None,
+                    file: None,
+                    forward: None,
+                    notice: None,
+                },
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+        // test if user can get message from group
+        let history: history::History = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_get_msg(&addr, &user_3_token, group.session))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert_eq!(history.msgs.len(), 1);
+        assert_eq!(history.msgs[0].content, Some("Hallo, Welt!".to_string()));
     }
 }

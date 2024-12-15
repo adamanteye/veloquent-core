@@ -94,6 +94,7 @@ impl TryFrom<(MsgPost, Uuid, Uuid)> for message::ActiveModel {
 }
 
 #[derive(Serialize, Debug, Clone)]
+#[cfg_attr(test, derive(Deserialize))]
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 /// 消息
 pub struct Msg {
@@ -112,6 +113,9 @@ pub struct Msg {
     /// 消息类型
     typ: i32,
     /// 消息内容
+    #[cfg(test)]
+    pub content: Option<String>,
+    #[cfg(not(test))]
     content: Option<String>,
     /// 文件 UUID
     file: Option<Uuid>,

@@ -137,6 +137,9 @@ pub struct GroupProfile {
     #[cfg(not(test))]
     id: Uuid,
     /// 群聊会话 UUID
+    #[cfg(test)]
+    pub session: Uuid,
+    #[cfg(not(test))]
     session: Uuid,
     /// 创建时间, ms 时间戳
     created_at: i64,

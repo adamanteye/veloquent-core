@@ -9,6 +9,7 @@ use entity::{
 /// 聊天记录
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 #[derive(Serialize, Debug, Clone)]
+#[cfg_attr(test, derive(Deserialize))]
 pub struct History {
     /// 消息列表
     pub msgs: Vec<Msg>,

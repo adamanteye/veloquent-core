@@ -383,6 +383,14 @@ mod tests {
             .unwrap()
     }
 
+    fn request_get_categories(addr: &str, token: &str) -> Request<Body> {
+        request_get_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/contact/categories"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
     fn request_create_group(addr: &str, token: &str, group: group::GroupPost) -> Request<Body> {
         request_post_json()
             .header("Authorization", format!("Bearer {token}"))
@@ -896,6 +904,19 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        // test if user can view their categories
+        let response: Vec<String> = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_get_categories(&addr, &user_1_token))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert_eq!(response.len(), 1);
+        assert_eq!(response[0], "family");
         // test if user can send message to contact
         let response = client
             .request(request_send_msg(

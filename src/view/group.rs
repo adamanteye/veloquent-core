@@ -594,9 +594,15 @@ pub async fn manage_group_handler(
         if user.id == owner {
             return Err(AppError::BadRequest("cannot transfer to self".to_string()));
         }
+        let m = member::Model::from_group_and_user(g.id, owner, &state.conn).await?;
         let mut g = g.clone().into_active_model();
         g.owner = ActiveValue::set(owner);
         Group::update(g).exec(&state.conn).await?;
+        if m.permission == 1 {
+            let mut m = m.into_active_model();
+            m.permission = ActiveValue::set(0);
+            Member::update(m).exec(&state.conn).await?;
+        }
         event!(Level::INFO, "transfer group [{group}] to [{owner}]");
     }
     let remove = params.remove.unwrap_or(false);

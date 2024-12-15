@@ -877,6 +877,17 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        // test if group owner can be transferred
+        let response = client
+            .request(request_group_manage(
+                &addr,
+                &user_1_token,
+                group.id,
+                &format!("?owner={user_2}"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
         // test if user can send message to contact
         let response = client
             .request(request_send_msg(

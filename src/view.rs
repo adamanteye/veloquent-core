@@ -339,10 +339,10 @@ mod tests {
             .unwrap()
     }
 
-    fn request_get_contacts(addr: &str, token: &str) -> Request<Body> {
+    fn request_get_contacts(addr: &str, token: &str, params: &str) -> Request<Body> {
         request_get_json()
             .header("Authorization", format!("Bearer {token}"))
-            .uri(format!("{addr}/contact/list"))
+            .uri(format!("{addr}/contact/list{params}"))
             .body(Body::empty())
             .unwrap()
     }
@@ -356,6 +356,34 @@ mod tests {
             .header("Authorization", format!("Bearer {token}"))
             .uri(format!("{addr}/user/profile"))
             .body(Body::from(serde_json::to_vec(&edition).unwrap()))
+            .unwrap()
+    }
+
+    fn request_delete() -> http::request::Builder {
+        Request::builder().method("DELETE")
+    }
+
+    fn request_delete_user(addr: &str, token: &str) -> Request<Body> {
+        request_delete()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/user/profile"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn request_edit_contact(addr: &str, token: &str, id: Uuid, params: &str) -> Request<Body> {
+        request_put_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/contact/edit/{id}{params}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn request_create_group(addr: &str, token: &str, group: group::GroupPost) -> Request<Body> {
+        request_post_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/group/new"))
+            .body(Body::from(serde_json::to_vec(&group).unwrap()))
             .unwrap()
     }
 
@@ -611,7 +639,7 @@ mod tests {
         let response: contact::ContactList = serde_json::from_reader(
             res_to_json(
                 client
-                    .request(request_get_contacts(&addr, &user_2_token))
+                    .request(request_get_contacts(&addr, &user_2_token, ""))
                     .await
                     .unwrap(),
             )
@@ -653,6 +681,36 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         consume_msg(socket_1).await;
         // user_1 and user_3 are now friends
+        // test if user can be deleted
+        let user: login::LoginResponse = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_register(
+                        &addr,
+                        user::RegisterProfile {
+                            name: "test_user1".to_string(),
+                            alias: None,
+                            phone: "18999990004".to_string(),
+                            gender: Some(1),
+                            bio: None,
+                            link: None,
+                            password: "123456".to_string(),
+                            email: "test1@example.com".to_string(),
+                        },
+                    ))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        let user_token = user.token;
+        let response = client
+            .request(request_delete_user(&addr, &user_token))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        // test if user profile can be edited
         let response = client
             .request(request_edit_user(
                 &addr,
@@ -670,5 +728,37 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        // test if contact can be edited
+        let response = client
+            .request(request_edit_contact(
+                &addr,
+                &user_1_token,
+                user_2,
+                "?category=family",
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        // test if group can be created
+        let group: group::GroupProfile = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_create_group(
+                        &addr,
+                        &user_1_token,
+                        group::GroupPost {
+                            name: Some("test_group".to_string()),
+                            members: vec![user_1, user_2],
+                        },
+                    ))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert!(group.members.contains(&user_1));
+        assert!(group.members.contains(&user_2));
+        assert_eq!(group.owner, user_1);
     }
 }

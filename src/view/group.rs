@@ -105,20 +105,31 @@ impl From<(Uuid, Uuid)> for member::ActiveModel {
 /// 新建群聊请求
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 #[derive(Deserialize, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct GroupPost {
     /// 群名
+    #[cfg(test)]
+    pub name: Option<String>,
+    #[cfg(not(test))]
     name: Option<String>,
     /// 群成员, 自动包含创建者, 此外最少需要一个成员
+    #[cfg(test)]
+    pub members: Vec<Uuid>,
+    #[cfg(not(test))]
     members: Vec<Uuid>,
 }
 
 /// 群聊基本信息
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 #[derive(Serialize)]
+#[cfg_attr(test, derive(Deserialize))]
 pub struct GroupProfile {
     /// 群名
     name: Option<String>,
     /// 群主 UUID
+    #[cfg(test)]
+    pub owner: Uuid,
+    #[cfg(not(test))]
     owner: Uuid,
     /// 群聊唯一主键
     id: Uuid,
@@ -129,6 +140,9 @@ pub struct GroupProfile {
     /// 群成员 UUID
     ///
     /// 包含群主
+    #[cfg(test)]
+    pub members: Vec<Uuid>,
+    #[cfg(not(test))]
     members: Vec<Uuid>,
     /// 管理员 UUID
     ///

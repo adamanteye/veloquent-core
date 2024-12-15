@@ -959,7 +959,7 @@ mod tests {
         consume_msg(socket_1.clone()).await;
         consume_msg(socket_2.clone()).await;
         assert_eq!(response.status(), StatusCode::OK);
-        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
         // test if user can get message from contact
         let history: history::History = serde_json::from_reader(
             res_to_json(
@@ -994,7 +994,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        tokio::time::sleep(tokio::time::Duration::from_millis(350)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
         // test if user can get message from group
         let history: history::History = serde_json::from_reader(
             res_to_json(

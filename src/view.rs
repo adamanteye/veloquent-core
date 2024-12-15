@@ -634,10 +634,8 @@ mod tests {
             .is_ok());
         let socket_3 = Arc::new(Mutex::new(socket_3));
         let socket = socket_2.clone();
-        let socket = socket_2.clone();
         let task = tokio::task::spawn(async move {
             let feed_2: feed::Notification =
-                match socket.lock().await.next().await.unwrap().unwrap() {
                 match socket.lock().await.next().await.unwrap().unwrap() {
                     tungstenite::Message::Text(msg) => serde_json::from_str(&msg).unwrap(),
                     _ => panic!("unexpected message"),

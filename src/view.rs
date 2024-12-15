@@ -958,8 +958,6 @@ mod tests {
             .unwrap();
         consume_msg(socket_1.clone()).await;
         consume_msg(socket_2.clone()).await;
-        consume_msg(socket_1.clone()).await;
-        consume_msg(socket_2.clone()).await;
         assert_eq!(response.status(), StatusCode::OK);
         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
         // test if user can get message from contact

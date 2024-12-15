@@ -1026,7 +1026,7 @@ mod tests {
         .unwrap();
         assert_ne!(response.token, user_1_token);
         // test if user can find user
-        let response: Vec<Uuid> = serde_json::from_reader(
+        let response: user::UserList = serde_json::from_reader(
             res_to_json(
                 client
                     .request(request_find_user(&addr, &user_1_token, "?name=test"))
@@ -1036,6 +1036,6 @@ mod tests {
             .await,
         )
         .unwrap();
-        assert_eq!(response.len(), 3);
+        assert_eq!(response.users.len(), 3);
     }
 }

@@ -413,6 +413,7 @@ pub async fn delete_user_handler(
 
 #[cfg_attr(feature = "dev", derive(ToSchema))]
 #[derive(Serialize, Debug)]
+#[cfg_attr(test, derive(Deserialize))]
 pub struct UserList {
     /// 用户主键列表
     pub users: Vec<Uuid>,

@@ -1,9 +1,6 @@
 use super::*;
 
-use entity::{
-    feed, message,
-    prelude::{Feed, Message},
-};
+use entity::{feed, prelude::Feed};
 
 use super::message::ReadAt;
 use contact::ContactList;
@@ -16,8 +13,8 @@ pub struct FeedItem {
     id: Uuid,
     /// 会话
     session: Uuid,
-    /// 新消息计数
-    cnt: u64,
+    /// 发送者
+    sender: Uuid,
 }
 
 /// 群聊的用户更新
@@ -79,68 +76,28 @@ pub enum Notification {
     },
 }
 
-async fn count_unread_msgs(
-    user: Uuid,
-    session: Uuid,
-    notice: bool,
-    conn: &DatabaseConnection,
-) -> Result<u64, AppError> {
-    Ok(Message::find()
-        .join_rev(
-            JoinType::InnerJoin,
-            feed::Entity::belongs_to(message::Entity)
-                .from(feed::Column::Message)
-                .to(message::Column::Id)
-                .into(),
-        )
-        .filter(feed::Column::User.eq(user))
-        .filter(message::Column::Session.eq(session))
-        .filter(message::Column::Notice.eq(notice))
-        .filter(feed::Column::ReadAt.is_null())
-        .count(conn)
-        .await?)
-}
-
 impl FeedItem {
-    pub(super) async fn from_group(
-        group: Uuid,
-        session: Uuid,
-        user: Uuid,
-        conn: &DatabaseConnection,
-    ) -> Result<Self, AppError> {
-        let cnt = count_unread_msgs(user, session, false, conn).await?;
+    pub(super) fn from_group(group: Uuid, session: Uuid, sender: Uuid) -> Result<Self, AppError> {
         Ok(FeedItem {
             id: group,
             session,
-            cnt,
+            sender,
         })
     }
 
-    pub(super) async fn from_chat(
-        ref_user: Uuid,
-        session: Uuid,
-        user: Uuid,
-        conn: &DatabaseConnection,
-    ) -> Result<Self, AppError> {
-        let cnt = count_unread_msgs(user, session, false, conn).await?;
+    pub(super) fn from_chat(ref_user: Uuid, session: Uuid, sender: Uuid) -> Result<Self, AppError> {
         Ok(FeedItem {
             id: ref_user,
             session,
-            cnt,
+            sender,
         })
     }
 
-    pub(super) async fn from_notice(
-        notice: Uuid,
-        session: Uuid,
-        user: Uuid,
-        conn: &DatabaseConnection,
-    ) -> Result<Self, AppError> {
-        let cnt = count_unread_msgs(user, session, true, conn).await?;
+    pub(super) fn from_notice(notice: Uuid, session: Uuid, sender: Uuid) -> Result<Self, AppError> {
         Ok(FeedItem {
             id: notice,
             session,
-            cnt,
+            sender,
         })
     }
 }

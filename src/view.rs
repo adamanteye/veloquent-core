@@ -473,6 +473,14 @@ mod tests {
             .unwrap()
     }
 
+    fn request_find_user(addr: &str, token: &str, params: &str) -> Request<Body> {
+        request_get_json()
+            .header("Authorization", format!("Bearer {token}"))
+            .uri(format!("{addr}/user{params}"))
+            .body(Body::empty())
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn integration() {
         let addr = "127.0.0.1:8000";
@@ -802,6 +810,7 @@ mod tests {
                     phone: None,
                     email: None,
                     gender: None,
+                    password: None,
                 },
             ))
             .await
@@ -1016,5 +1025,17 @@ mod tests {
         )
         .unwrap();
         assert_ne!(response.token, user_1_token);
+        // test if user can find user
+        let response: Vec<Uuid> = serde_json::from_reader(
+            res_to_json(
+                client
+                    .request(request_find_user(&addr, &user_1_token, "?name=test"))
+                    .await
+                    .unwrap(),
+            )
+            .await,
+        )
+        .unwrap();
+        assert_eq!(response.len(), 3);
     }
 }

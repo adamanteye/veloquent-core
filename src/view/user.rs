@@ -296,13 +296,18 @@ pub struct UserProfileEdition {
     pub bio: Option<String>,
     #[cfg(not(test))]
     pub bio: Option<String>,
+    /// 新密码
+    #[cfg(test)]
+    pub password: Option<String>,
+    #[cfg(not(test))]
+    pub password: Option<String>,
 }
 
 impl TryFrom<UserProfileEdition> for user::ActiveModel {
     type Error = AppError;
 
     fn try_from(value: UserProfileEdition) -> Result<Self, Self::Error> {
-        Ok(user::ActiveModel {
+        let mut user = user::ActiveModel {
             id: ActiveValue::not_set(),
             name: match value.name {
                 Some(n) => ActiveValue::set(n),
@@ -337,7 +342,17 @@ impl TryFrom<UserProfileEdition> for user::ActiveModel {
                 None => ActiveValue::not_set(),
             },
             link: ActiveValue::set(value.link),
-        })
+        };
+        if let Some(p) = value.password.as_ref() {
+            if p.is_empty() {
+                return Err(AppError::BadRequest("password cannot be empty".to_string()));
+            }
+            use utility::gen_hash_and_salt;
+            let (hash, salt) = gen_hash_and_salt(p)?;
+            user.hash = ActiveValue::set(hash);
+            user.salt = ActiveValue::set(salt);
+        }
+        Ok(user)
     }
 }
 

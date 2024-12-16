@@ -71,7 +71,7 @@ sea-orm-cli generate entity \
 如果想导出 SQL 文件, 可以执行:
 
 ```sh
-docker exec -it pg-dev pg_dump veloquent > velo.sql -U yangzheh
+docker exec -it pg-dev pg_dump veloquent > velo.sql -U yangzheh -s -F p -E UTF-8
 ```
 
 ## API 文档

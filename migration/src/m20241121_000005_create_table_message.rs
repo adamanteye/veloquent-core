@@ -1,6 +1,7 @@
 use sea_orm_migration::prelude::*;
 
 use super::m20241012_000001_create_table_user::User;
+use super::m20241014_000002_create_table_upload::Upload;
 use super::m20241110_000004_create_table_session::Session;
 
 pub struct Migration;
@@ -87,10 +88,28 @@ impl MigrationTrait for Migration {
                     .name("FK_MESSAGE_SENDER_USER_ID")
                     .to_owned(),
             )
+            .await?;
+        manager
+            .create_foreign_key(
+                ForeignKey::create()
+                    .from(Message::Table, Message::File)
+                    .to(Upload::Table, Upload::Uuid)
+                    .on_delete(ForeignKeyAction::SetNull)
+                    .name("FK_MESSAGE_FILE_UPLOAD_UUID")
+                    .to_owned(),
+            )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_foreign_key(
+                ForeignKey::drop()
+                    .name("FK_MESSAGE_FILE_UPLOAD_UUID")
+                    .table(Message::Table)
+                    .to_owned(),
+            )
+            .await?;
         manager
             .drop_foreign_key(
                 ForeignKey::drop()

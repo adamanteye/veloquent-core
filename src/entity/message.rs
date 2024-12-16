@@ -48,6 +48,14 @@ pub enum Relation {
     )]
     Session,
     #[sea_orm(
+        belongs_to = "super::upload::Entity",
+        from = "Column::File",
+        to = "super::upload::Column::Uuid",
+        on_update = "NoAction",
+        on_delete = "SetNull"
+    )]
+    Upload,
+    #[sea_orm(
         belongs_to = "super::user::Entity",
         from = "Column::Sender",
         to = "super::user::Column::Id",
@@ -66,6 +74,12 @@ impl Related<super::feed::Entity> for Entity {
 impl Related<super::session::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Session.def()
+    }
+}
+
+impl Related<super::upload::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Upload.def()
     }
 }
 
